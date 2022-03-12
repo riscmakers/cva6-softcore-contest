@@ -30,6 +30,14 @@
 # =========================================================================== #
 set project cva6_sim
 
+# if equal to 0, runs questasim in the GUI
+# if equal to 1, runs questasim in batch mode
+# this is explictly set in run_cva6_riscmakers script, but in case we're running
+# make cva6_sim directly, we need to set a default value here
+if {![info exists ::env(questasim_mode)]} {
+    set env(questasim_mode) 0
+}
+
 create_project $project . -force -part $::env(XILINX_PART)
 set_property board_part $::env(XILINX_BOARD) [current_project]
 
@@ -84,12 +92,20 @@ set_property verilog_define WT_DCACHE=1 [get_filesets sim_1]
 set_property top tb_cva6_zybo_z7_20 [get_filesets sim_1]
 update_compile_order -fileset sim_1
 
-
-
 if {$::env(SIM)} {
    puts "Behavioral simulation"
+   
+   # needs to be 4 directory levels away to access fpga/scripts
+   set_property -name {questa.simulate.custom_udo} -value {../../../../scripts/sim_behav.udo} -objects [get_filesets sim_1]
+   
    reset_simulation -simset sim_1 
-   launch_simulation
+
+    if {$::env(questasim_mode)} {
+        # only generate the script files, allowing us to perform simulation outside of the GUI
+        launch_simulation -scripts_only
+    } else {
+        launch_simulation
+    }
    
 } else {
     puts "Post implementation simulation"
@@ -117,5 +133,10 @@ if {$::env(SIM)} {
 
     reset_simulation -simset sim_1 -mode post-implementation -type functional
 
-    launch_simulation -mode post-implementation -type functional
+    if {$::env(questasim_mode)} {
+        # only generate the script files, allowing us to perform simulation outside of the GUI
+        launch_simulation -scripts_only -mode post-implementation -type functional
+    } else {
+        launch_simulation -mode post-implementation -type functional
+    }
 }

@@ -1,0 +1,29 @@
+#!/bin/bash
+
+##########################################################################
+# This script runs QuestaSim in batch mode (as opposed to the GUI mode)
+# Specifically, it sources the simulations scripts 
+# that Vivado generated in 'run_cva6_sim.tcl'
+##########################################################################
+
+echo "[run_questa_batch]: Entered: $(date)" | tee -a $SIM_RISCV_LOG
+
+if [[ $SIM_BEHAV_READY -eq 1 ]]
+then
+    echo "[run_questa_batch]: Entered sim behav: $(date)" | tee -a $SIM_RISCV_LOG
+    cd "$PARENT_FPGA_DIRECTORY/cva6_sim.sim/sim_1/behav/questa"
+    source ./compile.sh
+    source ./elaborate.sh
+    source ./simulate.sh
+    echo "[run_questa_batch]: Exited sim behav: $(date)" | tee -a $SIM_RISCV_LOG
+fi
+
+if [[ $SIM_POSTIMPL_READY -eq 1 ]]
+then
+    echo "[run_questa_batch]: Entered sim post impl: $(date)" | tee -a $SIM_RISCV_LOG
+    cd "$PARENT_FPGA_DIRECTORY/cva6_sim.sim/sim_1/impl/func/questa"
+    source ./compile.sh
+    source ./elaborate.sh
+    source ./simulate.sh
+    echo "[run_questa_batch]: Exited sim post impl: $(date)" | tee -a $SIM_RISCV_LOG
+fi

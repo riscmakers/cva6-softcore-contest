@@ -1,0 +1,67 @@
+#!/bin/bash
+
+##########################################################################
+# this script lets us "review" previous simulations through the 
+# QuestaSim GUI (via the dataset .wlf file)
+##########################################################################
+
+SAVE_SIM_FOLDER="./fpga/results/saved_questa_sims"
+
+# list all .wlf files in the directory
+wlf_files=$(find . -name *.wlf) 
+
+if [[ -z "$wlf_files" ]]
+then
+    echo "No simulation datasets (.wlf files) available"
+    echo "Please run a behavioral simulation"
+else
+    echo "**Available simulations**"
+    echo "$wlf_files" | nl -w2 -s') '
+    number_wlf_files=$(echo "$wlf_files" | wc -l) &>/dev/null
+
+    while :; do
+    read -e -p "Enter dataset number to review/save : " selected_sim
+    [[ $selected_sim =~ ^[0-9]+$ ]] || { echo "ERROR: enter a valid number"; continue; }
+    if (($selected_sim > 0 && $selected_sim <= $number_wlf_files)); then
+
+        selected_sim_path=$(echo "$wlf_files" | sed "${selected_sim}q;d")
+
+        # SAVE passed from makefile
+        if [[ "$1" == "save" ]]
+        then
+
+            read -e -p "Saved dataset name: " sim_name
+
+            # Error handling for the sim name
+            while [[ -z "$sim_name" ]];
+            do
+                echo "ERROR: Please enter at least 1 character"
+                read -e -p "Saved dataset name: " sim_name
+            done
+
+            # replace spaces (if there are any) with underscores because 
+            # sim_name is used as a file name
+            sim_name=$(echo $sim_name | sed -e 's/ /_/g') &>/dev/null
+
+            mkdir -p $SAVE_SIM_FOLDER
+            echo "$selected_sim_path will be saved to $SAVE_SIM_FOLDER/$sim_name"
+            vsim -c -do "dataset open $selected_sim_path cur_sim" \
+            -do "dataset save cur_sim $SAVE_SIM_FOLDER/$sim_name.wlf" \
+            -do "exit"
+
+        # REVIEW passed from makefile
+        elif [[ "$1" == "review" ]]
+        then
+            echo "$selected_sim_path will be reviewed"
+            vsim -view "$selected_sim_path" \
+            -do "./fpga/scripts/waveforms.udo" -do "./fpga/scripts/waveforms_gui.udo"
+        fi
+
+        break
+
+    else
+        echo "ERROR: no .wlf file exists for that number, try again"
+    fi
+    done
+
+fi

@@ -335,6 +335,15 @@ cva6_power_analysis:
 compile_xilinx_lib:
 	cd fpga && make xilinx_lib QUESTA_BIN=$(QUESTA_BIN) LIB_XILINX_QUESTA_PATH=$(LIB_XILINX_QUESTA_PATH)
 
+cva6_riscmakers:
+	@./fpga/scripts/run_cva6_riscmakers
+
+cva6_riscmakers_sim_review:
+	@./fpga/scripts/run_sim_review review
+
+cva6_riscmakers_sim_save:
+	@./fpga/scripts/run_sim_review save
+
 clean:
 	rm -rf $(riscv-torture-dir)/output/test*
 	rm -rf $(library)/ $(dpi-library)/ $(ver-library)/

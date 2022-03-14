@@ -8,8 +8,8 @@
 # - TODO: Generate simulation summary report 
 ######################################################################################
 
-SIM_BEHAV=1
-SIM_POSTIMPL=2
+export SIM_BEHAV=1
+export SIM_POSTIMPL=2
 SIM_ALL=3
 GUI_MODE=0
 BATCH_MODE=1
@@ -27,6 +27,7 @@ export SIM_RISCV_LOG="$PARENT_FPGA_DIRECTORY/latest_sim.log"
 export PATH_RESULTS="$PARENT_FPGA_DIRECTORY/results/latest"
 export PATH_RESULTS_BEHAV="$PATH_RESULTS/behav"
 export PATH_RESULTS_POSTIMPL="$PATH_RESULTS/post_impl"
+export PATH_RESULTS_SUMMARY="$PATH_RESULTS/summary.txt"
 
 # exported for child shell process
 export SIM_BEHAV_READY=0
@@ -78,6 +79,14 @@ done
 rm -r -f $PARENT_FPGA_DIRECTORY/reports_*
 rm -r -f $PARENT_FPGA_DIRECTORY/work-sim
 rm -f $SIM_RISCV_LOG
+rm -f $PATH_RESULTS/description
+rm -r -f $PATH_RESULTS_POSTIMPL
+rm -r -f $PATH_RESULTS_BEHAV
+rm -f $PATH_RESULTS_SUMMARY
+
+# export for summary script
+export sim_name
+export sim_type
 
 # export for run_cva6_sim.tcl later on
 export questasim_mode
@@ -153,4 +162,5 @@ then
   echo "[run_cva6_riscmakers] Simulation type $SIM_POSTIMPL finished on: $(date)" | tee -a $SIM_RISCV_LOG
 fi
 
-
+# Create a nice summary of the simulation results
+#"$PARENT_FPGA_DIRECTORY/scripts/run_sim_summary"

@@ -1,0 +1,51 @@
+#!/bin/bash
+
+touch $PATH_RESULTS_SUMMARY
+
+# echo "==============SIMULATION INFO===============" >> $PATH_RESULTS_SUMMARY
+# echo "Simulation summary on: $(date)" >> $PATH_RESULTS_SUMMARY
+# echo "Simulation name: $sim_name\n" >> $PATH_RESULTS_SUMMARY
+# echo "Simulation description:\n" >> $PATH_RESULTS_SUMMARY
+# cat $PATH_RESULTS/description >> $PATH_RESULTS_SUMMARY
+
+
+if [[ $sim_type == $SIM_BEHAV ]] || [[ $sim_type == $SIM_ALL ]]
+then
+    #total_cycles=$(cat )
+
+echo "============PERFORMANCE COUNTERS============" >> $PATH_RESULTS_SUMMARY
+    cat $PATH_RESULTS_BEHAV/performance_counters.txt >> $PATH_RESULTS_SUMMARY 
+echo "===============UART RESULTS================" >> $PATH_RESULTS_SUMMARY
+    cat $PATH_RESULTS_BEHAV/uart >> $PATH_RESULTS_SUMMARY
+fi
+
+if [[ $sim_type == $SIM_POSTIMPL ]] || [[ $sim_type == $SIM_ALL ]]
+then
+    #clock_period=
+    
+
+echo "==============POWER RESULTS================" >> $PATH_RESULTS_SUMMARY
+    cat $PATH_RESULTS_POSTIMPL/power_routed_mnist.txt >> $PATH_RESULTS_SUMMARY
+echo "==============ENERGY RESULTS===============" >> $PATH_RESULTS_SUMMARY
+    
+echo "============UTILIZATION RESULTS============" >> $PATH_RESULTS_SUMMARY
+    cat $PATH_RESULTS_POSTIMPL/cva6_sim.utilization.rpt >> $PATH_RESULTS_SUMMARY
+
+fi
+
+if [[ ! -d "$PARENT_FPGA_DIRECTORY/results/base" ]]
+then
+    echo "Need base results for comparision, please run a base simulation"
+fi
+
+get_clock_period() {
+
+}
+
+get_clock_cycles() {
+
+}
+
+get_icache_misses() {
+    
+}

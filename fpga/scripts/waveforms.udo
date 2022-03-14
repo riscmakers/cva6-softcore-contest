@@ -31,12 +31,12 @@ add wave -noupdate -group cache -group data -label evict_cache_instr ${TOPLEVEL_
 add wave -noupdate -group cache -group data -label evict_cache_data ${TOPLEVEL_PATH}/i_cache_subsystem/i_wt_dcache/i_wt_dcache_missunit/update_lfsr
 
 # addresses 
-set areq_i [find signals areq_i -recursive]
-set areq_o [find signals areq_o -recursive]
-set dreq_i [find signals dreq_i -recursive]
-set dreq_o [find signals dreq_o -recursive]
-set req_ports_i [find signals req_ports_i -recursive]
-set req_ports_o [find signals req_ports_o -recursive]
+set areq_i [find signals /*/areq_i -recursive]
+set areq_o [find signals /*/areq_o -recursive]
+set dreq_i [find signals /*/dreq_i -recursive]
+set dreq_o [find signals /*/dreq_o -recursive]
+set req_ports_i [find signals /*/req_ports_i -recursive]
+set req_ports_o [find signals /*/req_ports_o -recursive]
 
 add wave -noupdate -group cache -group instr $areq_i
 add wave -noupdate -group cache -group instr $areq_o
@@ -71,3 +71,6 @@ add wave -noupdate -group performance -group totals -label returns -unsigned ${T
 add wave -noupdate -group performance -group totals -label branch_mispredicts -unsigned ${TOPLEVEL_PATH}/i_perf_counters/perf_counter_q[2830]
 add wave -noupdate -group performance -group totals -label scoreboard_full -unsigned ${TOPLEVEL_PATH}/i_perf_counters/perf_counter_q[2831]
 add wave -noupdate -group performance -group totals -label instr_queue_empty -unsigned ${TOPLEVEL_PATH}/i_perf_counters/perf_counter_q[2832]
+
+# instr trace (add conditional, to see if these signals were included to debug simulation)
+# add wave -noupdate -group instr_tracer ${TOPLEVEL_PATH}/instr_tracer_i/tracer_if/*

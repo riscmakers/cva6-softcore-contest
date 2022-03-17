@@ -95,6 +95,9 @@ export questasim_mode
 mkdir -p $PATH_RESULTS
 echo $sim_description > "$PATH_RESULTS/description"
 
+# force add_sources.tcl to be regenerated, incase new source files were added
+make_and_log "fpga/scripts/add_sources.tcl -B"
+
 # here is where the log file is created
 echo "[run_cva6_riscmakers]: Sim name: $sim_name || Sim type input: $sim_type || QuestaSim mode: $questasim_mode" | tee $SIM_RISCV_LOG
 

@@ -3,6 +3,8 @@
 # in the wavewindow (signals of interest, registers, etc.)
 ##########################################################################
 
+onerror {resume}
+
 set TOPLEVEL_PATH "/tb_cva6_zybo_z7_20/DUT/i_ariane"
 
 # batch_mode == 1 if in batch mode

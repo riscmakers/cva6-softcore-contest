@@ -24,7 +24,7 @@ module frontend import ariane_pkg::*; #(
   input  logic               flush_bp_i,         // flush branch prediction
   input  logic               debug_mode_i,
   // global input
-  input  logic [riscv::XLEN-1:0]        boot_addr_i,
+  input  logic [riscv::VLEN-1:0]        boot_addr_i,
   // Set a new PC
   // mispredict
   input  bp_resolve_t        resolved_branch_i,  // from controller signaling a branch_predict -> update BTB
@@ -49,7 +49,7 @@ module frontend import ariane_pkg::*; #(
     logic [FETCH_WIDTH-1:0] icache_data_q;
     logic                   icache_valid_q;
     ariane_pkg::frontend_exception_t icache_ex_valid_q;
-    logic [riscv::VLEN-1:0]            icache_vaddr_q;
+    logic [riscv::VLEN-1:0] icache_vaddr_q;
     logic                   instr_queue_ready;
     logic [ariane_pkg::INSTR_PER_FETCH-1:0] instr_queue_consumed;
     // upper-most branch-prediction from last cycle
@@ -68,7 +68,11 @@ module frontend import ariane_pkg::*; #(
     // shift amount
     logic [$clog2(ariane_pkg::INSTR_PER_FETCH)-1:0] shamt;
     // address will always be 16 bit aligned, make this explicit here
-    assign shamt = icache_dreq_i.vaddr[$clog2(ariane_pkg::INSTR_PER_FETCH):1];
+    if (ariane_pkg::RVC) begin : gen_shamt
+      assign shamt = icache_dreq_i.vaddr[$clog2(ariane_pkg::INSTR_PER_FETCH):1];
+    end else begin
+      assign shamt = 1'b0;
+    end
 
     // -----------------------
     // Ctrl Flow Speculation
@@ -123,14 +127,18 @@ module frontend import ariane_pkg::*; #(
     // select the right branch prediction result
     // in case we are serving an unaligned instruction in instr[0] we need to take
     // the prediction we saved from the previous fetch
-    assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_q : bht_prediction[0];
-    assign btb_prediction_shifted[0] = (serving_unaligned) ? btb_q : btb_prediction[0];
-    // for all other predictions we can use the generated address to index
-    // into the branch prediction data structures
-    for (genvar i = 1; i < INSTR_PER_FETCH; i++) begin : gen_prediction_address
-      assign bht_prediction_shifted[i] = bht_prediction[addr[i][$clog2(INSTR_PER_FETCH):1]];
-      assign btb_prediction_shifted[i] = btb_prediction[addr[i][$clog2(INSTR_PER_FETCH):1]];
-    end
+    assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_q : bht_prediction[addr[0][1]];
+    assign btb_prediction_shifted[0] = (serving_unaligned) ? btb_q : btb_prediction[addr[0][1]];
+    
+    if (ariane_pkg::RVC) begin : gen_btb_prediction_shifted
+      // for all other predictions we can use the generated address to index
+      // into the branch prediction data structures
+      for (genvar i = 1; i < INSTR_PER_FETCH; i++) begin : gen_prediction_address
+        assign bht_prediction_shifted[i] = bht_prediction[addr[i][$clog2(INSTR_PER_FETCH):1]];
+        assign btb_prediction_shifted[i] = btb_prediction[addr[i][$clog2(INSTR_PER_FETCH):1]];
+      end
+    end;
+    
     // for the return address stack it doens't matter as we have the
     // address of the call/return already
     logic bp_valid;
@@ -151,7 +159,7 @@ module frontend import ariane_pkg::*; #(
       // unconditional jumps with known target -> immediately resolved
       assign is_jump[i] = instruction_valid[i] & (rvi_jump[i] | rvc_jump[i]);
       // unconditional jumps with unknown target -> BTB
-      assign is_jalr[i] = instruction_valid[i] & ~is_return[i] & ~is_call[i] & (rvi_jalr[i] | rvc_jalr[i] | rvc_jr[i]);
+      assign is_jalr[i] = instruction_valid[i] & ~is_return[i] & (rvi_jalr[i] | rvc_jalr[i] | rvc_jr[i]);
     end
 
     // taken/not taken
@@ -230,7 +238,7 @@ module frontend import ariane_pkg::*; #(
     always_comb begin
       bp_valid = 1'b0;
       // BP cannot be valid if we have a return instruction and the RAS is not giving a valid address
-      // Check that we encountered a control flow and that for a return the RAS 
+      // Check that we encountered a control flow and that for a return the RAS
       // contains a valid prediction.
       for (int i = 0; i < INSTR_PER_FETCH; i++) bp_valid |= ((cf_type[i] != NoCF & cf_type[i] != Return) | ((cf_type[i] == Return) & ras_predict.valid));
     end
@@ -251,6 +259,11 @@ module frontend import ariane_pkg::*; #(
     // Update Control Flow Predictions
     bht_update_t bht_update;
     btb_update_t btb_update;
+
+    // assert on branch, deassert when resolved
+    logic speculative_q,speculative_d;
+    assign speculative_d = (speculative_q && !resolved_branch_i.valid || |is_branch || |is_return || |is_jalr) && !flush_i;
+    assign icache_dreq_o.spec = speculative_d;
 
     assign bht_update.valid = resolved_branch_i.valid
                                 & (resolved_branch_i.cf_type == ariane_pkg::Branch);
@@ -284,8 +297,8 @@ module frontend import ariane_pkg::*; #(
       // boot_addr_i will be assigned a constant
       // on the top-level.
       if (npc_rst_load_q) begin
-        npc_d         = boot_addr_i[riscv::VLEN-1:0];
-        fetch_address = boot_addr_i[riscv::VLEN-1:0];
+        npc_d         = boot_addr_i;
+        fetch_address = boot_addr_i;
       end else begin
         fetch_address    = npc_q;
         // keep stable by default
@@ -328,6 +341,7 @@ module frontend import ariane_pkg::*; #(
       if (!rst_ni) begin
         npc_rst_load_q    <= 1'b1;
         npc_q             <= '0;
+        speculative_q     <= '0;
         icache_data_q     <= '0;
         icache_valid_q    <= 1'b0;
         icache_vaddr_q    <= 'b0;
@@ -337,6 +351,7 @@ module frontend import ariane_pkg::*; #(
       end else begin
         npc_rst_load_q    <= 1'b0;
         npc_q             <= npc_d;
+        speculative_q    <= speculative_d;
         icache_valid_q    <= icache_dreq_i.valid;
         if (icache_dreq_i.valid) begin
           icache_data_q        <= icache_data;
@@ -434,7 +449,7 @@ module frontend import ariane_pkg::*; #(
     // pragma translate_off
     `ifndef VERILATOR
       initial begin
-        assert (FETCH_WIDTH == 32 || FETCH_WIDTH == 64) else $fatal("[frontend] fetch width != not supported");
+        assert (FETCH_WIDTH == 32 || FETCH_WIDTH == 64) else $fatal(1, "[frontend] fetch width != not supported");
       end
     `endif
     // pragma translate_on

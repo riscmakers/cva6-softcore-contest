@@ -70,14 +70,13 @@ module decoder import ariane_pkg::*; (
         is_control_flow_instr_o     = 1'b0;
         illegal_instr               = 1'b0;
         instruction_o.pc            = pc_i;
-        instruction_o.trans_id      = 5'b0;
+        instruction_o.trans_id      = '0;
         instruction_o.fu            = NONE;
         instruction_o.op            = ariane_pkg::ADD;
         instruction_o.rs1           = '0;
         instruction_o.rs2           = '0;
         instruction_o.rd            = '0;
         instruction_o.use_pc        = 1'b0;
-        instruction_o.trans_id      = '0;
         instruction_o.is_compressed = is_compressed_i;
         instruction_o.use_zimm      = 1'b0;
         instruction_o.bp            = branch_predict_i;
@@ -160,6 +159,8 @@ module decoder import ariane_pkg::*; (
                                         // check TVM flag and intercept SFENCE.VMA call if necessary
                                         if (priv_lvl_i == riscv::PRIV_LVL_S && tvm_i)
                                             illegal_instr = 1'b1;
+                                    end else begin
+                                       illegal_instr = 1'b1;
                                     end
                                 end
                             endcase
@@ -229,11 +230,8 @@ module decoder import ariane_pkg::*; (
                         // Currently implemented as a whole DCache flush boldly ignoring other things
                         3'b000: instruction_o.op  = ariane_pkg::FENCE;
                         // FENCE.I
-                        3'b001: begin
-                            if (instr.instr[31:20] != '0)
-                                illegal_instr = 1'b1;
-                            instruction_o.op  = ariane_pkg::FENCE_I;
-                        end
+                        3'b001: instruction_o.op  = ariane_pkg::FENCE_I;
+
                         default: illegal_instr = 1'b1;
                     endcase
 
@@ -1006,6 +1004,16 @@ module decoder import ariane_pkg::*; (
                 default: illegal_instr = 1'b1;
             endcase
         end
+        if (CVXIF_PRESENT) begin
+            if (is_illegal_i || illegal_instr) begin
+                instruction_o.fu    = CVXIF;
+                instruction_o.rs1   = instr.r4type.rs1;
+                instruction_o.rs2   = instr.r4type.rs2;
+                instruction_o.rd    = instr.r4type.rd;
+                instruction_o.op    = ariane_pkg::OFFLOAD;
+                imm_select          = RS3;
+            end
+        end
     end
 
     // --------------------------------
@@ -1076,7 +1084,7 @@ module decoder import ariane_pkg::*; (
             // check here if we decoded an invalid instruction or if the compressed decoder already decoded
             // a invalid instruction
             if (illegal_instr || is_illegal_i) begin
-                instruction_o.ex.valid = 1'b1;
+                if (!CVXIF_PRESENT) instruction_o.ex.valid = 1'b1;
                 // we decoded an illegal exception here
                 instruction_o.ex.cause = riscv::ILLEGAL_INSTR;
             // we got an ecall, set the correct cause depending on the current privilege level

@@ -1,7 +1,7 @@
 Copyright 1986-2020 Xilinx, Inc. All Rights Reserved.
 ------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2020.1 (lin64) Build 2902540 Wed May 27 19:54:35 MDT 2020
-| Date         : Sat Mar 12 16:50:29 2022
+| Date         : Fri Apr 15 02:40:25 2022
 | Host         : riscmakers.home running 64-bit CentOS Linux release 8.5.2111
 | Command      : check_timing -file reports_cva6_sim_impl/cva6_sim.check_timing.rpt
 | Design       : cva6_zybo_z7_20

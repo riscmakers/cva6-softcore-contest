@@ -79,6 +79,8 @@ LIB_XILINX_QUESTA_PATH := $(root-dir)fpga/lib_xilinx_questa
 ariane_pkg := include/riscv_pkg.sv                          \
               src/riscv-dbg/src/dm_pkg.sv                   \
               include/ariane_pkg.sv                         \
+              include/cv32a6_imac_sv0_config_pkg.sv         \
+              include/cvxif_pkg.sv                          \
               include/std_cache_pkg.sv                      \
               include/wt_cache_pkg.sv                       \
               src/axi/src/axi_pkg.sv                        \
@@ -180,6 +182,7 @@ src :=  $(filter-out src/ariane_regfile.sv, $(wildcard src/*.sv))              \
         src/common_cells/src/deprecated/rrarbiter.sv                           \
         src/common_cells/src/stream_delay.sv                                   \
         src/common_cells/src/lfsr_8bit.sv                                      \
+        src/common_cells/src/lfsr.sv                                           \
         src/common_cells/src/lfsr_16bit.sv                                     \
         src/common_cells/src/delta_counter.sv                                  \
         src/common_cells/src/counter.sv                                        \
@@ -286,6 +289,7 @@ fpga_filter += $(addprefix $(root-dir), src/util/ex_trace_item.sv)
 fpga_filter += $(addprefix $(root-dir), src/util/instr_trace_item.sv)
 fpga_filter += $(addprefix $(root-dir), src/util/instr_tracer_if.sv)
 fpga_filter += $(addprefix $(root-dir), src/util/instr_tracer.sv)
+fpga_filter += $(addprefix $(root-dir), src/cva6.sv)
 tbs_fpga := $(addprefix $(root-dir), $(tbs))
 
 fpga/scripts/add_sources.tcl:

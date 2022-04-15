@@ -71,7 +71,7 @@ module load_store_unit import ariane_pkg::*; #(
     input  amo_resp_t                amo_resp_i,
     // PMP
     input  riscv::pmpcfg_t [15:0]    pmpcfg_i,
-    input  logic [15:0][53:0]        pmpaddr_i
+    input  logic [15:0][riscv::PLEN-3:0] pmpaddr_i
 );
     // data is misaligned
     logic data_misaligned;
@@ -89,10 +89,10 @@ module load_store_unit import ariane_pkg::*; #(
     // Address Generation Unit (AGU)
     // ------------------------------
     // virtual address as calculated by the AGU in the first cycle
-    logic [riscv::VLEN-1:0]   vaddr_i;
-    riscv::xlen_t             vaddr_xlen;
-    logic                     overflow;
-    logic [7:0]               be_i;
+    logic [riscv::VLEN-1:0]           vaddr_i;
+    riscv::xlen_t                     vaddr_xlen;
+    logic                             overflow;
+    logic [(riscv::XLEN/8)-1:0]       be_i;
 
     assign vaddr_xlen = $unsigned($signed(fu_data_i.imm) + $signed(fu_data_i.operand_a));
     assign vaddr_i = vaddr_xlen[riscv::VLEN-1:0];
@@ -127,77 +127,101 @@ module load_store_unit import ariane_pkg::*; #(
     exception_t               ld_ex;
     exception_t               st_ex;
 
-    
     // -------------------
     // MMU e.g.: TLBs/PTW
     // -------------------
-    generate
-        if (MMU_PRESENT) begin : mmu_gen
-            mmu #(
-                .INSTR_TLB_ENTRIES      ( 16                     ),
-                .DATA_TLB_ENTRIES       ( 16                     ),
-                .ASID_WIDTH             ( ASID_WIDTH             ),
-                .ArianeCfg              ( ArianeCfg              )
-            ) i_mmu (
-                // misaligned bypass
-                .misaligned_ex_i        ( misaligned_exception   ),
-                .lsu_is_store_i         ( st_translation_req     ),
-                .lsu_req_i              ( translation_req        ),
-                .lsu_vaddr_i            ( mmu_vaddr              ),
-                .lsu_valid_o            ( translation_valid      ),
-                .lsu_paddr_o            ( mmu_paddr              ),
-                .lsu_exception_o        ( mmu_exception          ),
-                .lsu_dtlb_hit_o         ( dtlb_hit               ), // send in the same cycle as the request
-                .lsu_dtlb_ppn_o         ( dtlb_ppn               ), // send in the same cycle as the request
-                // connecting PTW to D$ IF
-                .req_port_i             ( dcache_req_ports_i [0] ),
-                .req_port_o             ( dcache_req_ports_o [0] ),
-                // icache address translation requests
-                .icache_areq_i          ( icache_areq_i          ),
-                .asid_to_be_flushed_i,
-                .vaddr_to_be_flushed_i,
-                .icache_areq_o          ( icache_areq_o          ),
-                .pmpcfg_i,
-                .pmpaddr_i,
-                .*
-            );
-        end else begin : no_mmu_gen
-            assign  icache_areq_o.fetch_valid  = icache_areq_i.fetch_req;
-            assign  icache_areq_o.fetch_paddr  = icache_areq_i.fetch_vaddr[riscv::PLEN-1:0]; 
-            assign  icache_areq_o.fetch_exception      = '0;
+    if (MMU_PRESENT && (riscv::XLEN == 64)) begin : gen_mmu_sv39
+        mmu #(
+            .INSTR_TLB_ENTRIES      ( 16                     ),
+            .DATA_TLB_ENTRIES       ( 16                     ),
+            .ASID_WIDTH             ( ASID_WIDTH             ),
+            .ArianeCfg              ( ArianeCfg              )
+        ) i_cva6_mmu (
+            // misaligned bypass
+            .misaligned_ex_i        ( misaligned_exception   ),
+            .lsu_is_store_i         ( st_translation_req     ),
+            .lsu_req_i              ( translation_req        ),
+            .lsu_vaddr_i            ( mmu_vaddr              ),
+            .lsu_valid_o            ( translation_valid      ),
+            .lsu_paddr_o            ( mmu_paddr              ),
+            .lsu_exception_o        ( mmu_exception          ),
+            .lsu_dtlb_hit_o         ( dtlb_hit               ), // send in the same cycle as the request
+            .lsu_dtlb_ppn_o         ( dtlb_ppn               ), // send in the same cycle as the request
+            // connecting PTW to D$ IF
+            .req_port_i             ( dcache_req_ports_i [0] ),
+            .req_port_o             ( dcache_req_ports_o [0] ),
+            // icache address translation requests
+            .icache_areq_i          ( icache_areq_i          ),
+            .asid_to_be_flushed_i,
+            .vaddr_to_be_flushed_i,
+            .icache_areq_o          ( icache_areq_o          ),
+            .pmpcfg_i,
+            .pmpaddr_i,
+            .*
+        );
+    end else if (MMU_PRESENT && (riscv::XLEN == 32)) begin : gen_mmu_sv32
+        cva6_mmu_sv32 #(
+            .INSTR_TLB_ENTRIES      ( 16                     ),
+            .DATA_TLB_ENTRIES       ( 16                     ),
+            .ASID_WIDTH             ( ASID_WIDTH             ),
+            .ArianeCfg              ( ArianeCfg              )
+        ) i_cva6_mmu (
+            // misaligned bypass
+            .misaligned_ex_i        ( misaligned_exception   ),
+            .lsu_is_store_i         ( st_translation_req     ),
+            .lsu_req_i              ( translation_req        ),
+            .lsu_vaddr_i            ( mmu_vaddr              ),
+            .lsu_valid_o            ( translation_valid      ),
+            .lsu_paddr_o            ( mmu_paddr              ),
+            .lsu_exception_o        ( mmu_exception          ),
+            .lsu_dtlb_hit_o         ( dtlb_hit               ), // send in the same cycle as the request
+            .lsu_dtlb_ppn_o         ( dtlb_ppn               ), // send in the same cycle as the request
+            // connecting PTW to D$ IF
+            .req_port_i             ( dcache_req_ports_i [0] ),
+            .req_port_o             ( dcache_req_ports_o [0] ),
+            // icache address translation requests
+            .icache_areq_i          ( icache_areq_i          ),
+            .asid_to_be_flushed_i,
+            .vaddr_to_be_flushed_i,
+            .icache_areq_o          ( icache_areq_o          ),
+            .pmpcfg_i,
+            .pmpaddr_i,
+            .*
+        );
+    end else begin : gen_no_mmu
+        assign  icache_areq_o.fetch_valid  = icache_areq_i.fetch_req;
+        assign  icache_areq_o.fetch_paddr  = icache_areq_i.fetch_vaddr[riscv::PLEN-1:0];
+        assign  icache_areq_o.fetch_exception      = '0;
 
-            assign dcache_req_ports_o[0].address_index = '0;
-            assign dcache_req_ports_o[0].address_tag   = '0;
-            assign dcache_req_ports_o[0].data_wdata    = 64'b0;
-            assign dcache_req_ports_o[0].data_req      = 1'b0;
-            assign dcache_req_ports_o[0].data_be       = 8'hFF;
-            assign dcache_req_ports_o[0].data_size     = 2'b11;
-            assign dcache_req_ports_o[0].data_we       = 1'b0;
-            assign dcache_req_ports_o[0].kill_req      = '0;
-            assign dcache_req_ports_o[0].tag_valid     = 1'b0;
+        assign dcache_req_ports_o[0].address_index = '0;
+        assign dcache_req_ports_o[0].address_tag   = '0;
+        assign dcache_req_ports_o[0].data_wdata    = '0;
+        assign dcache_req_ports_o[0].data_req      = 1'b0;
+        assign dcache_req_ports_o[0].data_be       = '1;
+        assign dcache_req_ports_o[0].data_size     = 2'b11;
+        assign dcache_req_ports_o[0].data_we       = 1'b0;
+        assign dcache_req_ports_o[0].kill_req      = '0;
+        assign dcache_req_ports_o[0].tag_valid     = 1'b0;
 
-            assign itlb_miss_o           = 1'b0;
-            assign dtlb_miss_o           = 1'b0;
+        assign itlb_miss_o = 1'b0;
+        assign dtlb_miss_o = 1'b0;
+        assign dtlb_ppn    = mmu_vaddr[riscv::PLEN-1:12];
+        assign dtlb_hit    = 1'b1;
 
-            assign dtlb_ppn        = mmu_vaddr[riscv::PLEN-1:12];
-            assign dtlb_hit           = 1'b1;
+        assign mmu_exception = '0;
 
-            assign mmu_exception       = '0; 
-
-            always_ff @(posedge clk_i or negedge rst_ni) begin
-                if (~rst_ni) begin
-                    mmu_paddr      <= '0;
-                    translation_valid    <= '0;
-                end else begin
-                    mmu_paddr      <=  mmu_vaddr[riscv::PLEN-1:0];
-                    translation_valid    <= translation_req;
-                end
+        always_ff @(posedge clk_i or negedge rst_ni) begin
+            if (~rst_ni) begin
+                mmu_paddr         <= '0;
+                translation_valid <= '0;
+            end else begin
+                mmu_paddr         <=  mmu_vaddr[riscv::PLEN-1:0];
+                translation_valid <= translation_req;
             end
         end
-    endgenerate
+    end
 
 
-   
     logic store_buffer_empty;
     // ------------------
     // Store Unit
@@ -328,7 +352,8 @@ module load_store_unit import ariane_pkg::*; #(
     // we can generate the byte enable from the virtual address since the last
     // 12 bit are the same anyway
     // and we can always generate the byte enable from the address at hand
-    assign be_i = be_gen(vaddr_i[2:0], extract_transfer_size(fu_data_i.operator));
+    assign be_i = riscv::IS_XLEN64 ? be_gen(vaddr_i[2:0], extract_transfer_size(fu_data_i.operator)):
+                                     be_gen_32(vaddr_i[1:0], extract_transfer_size(fu_data_i.operator));
 
     // ------------------------
     // Misaligned Exception
@@ -422,11 +447,11 @@ module load_store_unit import ariane_pkg::*; #(
     // new data arrives here
     lsu_ctrl_t lsu_req_i;
 
-    assign lsu_req_i = {lsu_valid_i, vaddr_i, overflow, {{64-riscv::XLEN{1'b0}}, fu_data_i.operand_b}, be_i, fu_data_i.fu, fu_data_i.operator, fu_data_i.trans_id};
+    assign lsu_req_i = {lsu_valid_i, vaddr_i, overflow, fu_data_i.operand_b, be_i, fu_data_i.fu, fu_data_i.operator, fu_data_i.trans_id};
 
     lsu_bypass lsu_bypass_i (
         .lsu_req_i          ( lsu_req_i   ),
-        .lus_req_valid_i    ( lsu_valid_i ),
+        .lsu_req_valid_i    ( lsu_valid_i ),
         .pop_ld_i           ( pop_ld      ),
         .pop_st_i           ( pop_st      ),
 
@@ -453,7 +478,7 @@ module lsu_bypass import ariane_pkg::*; (
     input  logic      flush_i,
 
     input  lsu_ctrl_t lsu_req_i,
-    input  logic      lus_req_valid_i,
+    input  logic      lsu_req_valid_i,
     input  logic      pop_ld_i,
     input  logic      pop_st_i,
 
@@ -481,7 +506,7 @@ module lsu_bypass import ariane_pkg::*; (
 
         mem_n = mem_q;
         // we've got a valid LSU request
-        if (lus_req_valid_i) begin
+        if (lsu_req_valid_i) begin
             mem_n[write_pointer_q] = lsu_req_i;
             write_pointer++;
             status_cnt++;

@@ -14,7 +14,14 @@
  *
  * Description: Common RISC-V definitions.
  */
+
 package riscv;
+
+    // ----------------------
+    // Import cva6 config from cva6_config_pkg
+    // ----------------------
+    localparam XLEN = cva6_config_pkg::CVA6ConfigXlen;
+    localparam FPU_EN = cva6_config_pkg::CVA6ConfigFpuEn;
 
     // ----------------------
     // Data and Address length
@@ -28,22 +35,22 @@ package riscv;
        ModeSv64 = 11
     } vm_mode_t;
 
-    localparam XLEN = 32;
-
     // Warning: When using STD_CACHE, configuration must be PLEN=56 and VLEN=64
     // Warning: VLEN must be superior or equal to PLEN
-    localparam VLEN       = (XLEN == 32) ? 32 : 64;    // virtual address length
-    localparam PLEN       = (XLEN == 32) ? 32 : 56;    // physical address length
+    localparam VLEN             = (XLEN == 32) ? 32 : 64;    // virtual address length
+    localparam PLEN             = (XLEN == 32) ? 32 : 56;    // physical address length
 
-    localparam IS_XLEN64  = (XLEN == 32) ? 1'b0 : 1'b1;
-    localparam ModeW      = (XLEN == 32) ? 1 : 4;
-    localparam ASIDW      = (XLEN == 32) ? 9 : 16;
-    localparam PPNW       = (XLEN == 32) ? 22 : 44;
-    localparam logic [ModeW-1:0] MODE_SV = (XLEN == 32) ? ModeSv32[ModeW-1:0] : ModeSv39[ModeW-1:0];
-    localparam SV         = (MODE_SV == ModeSv32[ModeW-1:0]) ? 32 : 39;
-    localparam VPN2       = (riscv::VLEN-31 < 8) ? riscv::VLEN-31 : 8;
+    localparam IS_XLEN32        = (XLEN == 32) ? 1'b1 : 1'b0;
+    localparam IS_XLEN64        = (XLEN == 32) ? 1'b0 : 1'b1;
+    localparam ModeW            = (XLEN == 32) ? 1 : 4;
+    localparam ASIDW            = (XLEN == 32) ? 9 : 16;
+    localparam PPNW             = (XLEN == 32) ? 22 : 44;
+    localparam vm_mode_t        MODE_SV = (XLEN == 32) ? ModeSv32 : ModeSv39;
+    localparam SV               = (MODE_SV == ModeSv32) ? 32 : 39;
+    localparam VPN2             = (VLEN-31 < 8) ? VLEN-31 : 8;
+    localparam XLEN_ALIGN_BYTES = $clog2(XLEN/8);
 
-    typedef logic [riscv::XLEN-1:0] xlen_t;
+    typedef logic [XLEN-1:0] xlen_t;
 
     // --------------------
     // Privilege Spec
@@ -162,7 +169,7 @@ package riscv;
     } stype_t;
 
     typedef struct packed {
-        logic [31:12] funct3;
+        logic [31:12] imm;
         logic [11:7]  rd;
         logic [6:0]   opcode;
     } utype_t;
@@ -228,7 +235,7 @@ package riscv;
     localparam OpcodeRsrvd3    = 7'b11_101_11;
     localparam OpcodeCustom3   = 7'b11_110_11;
 
-    // RV64C listings:
+    // RV64C/RV32C listings:
     // Quadrant 0
     localparam OpcodeC0             = 2'b00;
     localparam OpcodeC0Addi4spn     = 3'b000;
@@ -242,7 +249,8 @@ package riscv;
     // Quadrant 1
     localparam OpcodeC1             = 2'b01;
     localparam OpcodeC1Addi         = 3'b000;
-    localparam OpcodeC1Addiw        = 3'b001;
+    localparam OpcodeC1Addiw        = 3'b001; //for RV64I only
+    localparam OpcodeC1Jal          = 3'b001; //for RV32I only
     localparam OpcodeC1Li           = 3'b010;
     localparam OpcodeC1LuiAddi16sp  = 3'b011;
     localparam OpcodeC1MiscAlu      = 3'b100;
@@ -263,10 +271,10 @@ package riscv;
     // ----------------------
     // Virtual Memory
     // ----------------------
-    // memory management, pte
+    // memory management, pte for sv39
     typedef struct packed {
         logic [9:0]  reserved;
-        logic [PLEN-12-1:0] ppn;
+        logic [44-1:0] ppn; // PPN length for 
         logic [1:0]  rsw;
         logic d;
         logic a;
@@ -277,6 +285,20 @@ package riscv;
         logic r;
         logic v;
     } pte_t;
+
+    // memory management, pte for sv32
+    typedef struct packed {
+        logic [22-1:0] ppn; // PPN length for 
+        logic [1:0]  rsw;
+        logic d;
+        logic a;
+        logic g;
+        logic u;
+        logic x;
+        logic w;
+        logic r;
+        logic v;
+    } pte_sv32_t;
 
     // ----------------------
     // Exception Cause Codes
@@ -680,7 +702,6 @@ package riscv;
             return $sformatf("%d 0x%h %s\n", priv_lvl, pc, instr_word);
         end
     endfunction
-    // pragma translate_on
 
     typedef struct {
         byte priv;
@@ -691,5 +712,6 @@ package riscv;
         int unsigned instr;
         byte was_exception;
     } commit_log_t;
+    // pragma translate_on
 
 endpackage

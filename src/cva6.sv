@@ -10,7 +10,7 @@
 //
 // Author: Florian Zaruba, ETH Zurich
 // Date: 19.03.2017
-// Description: Ariane Top-level module
+// Description: CVA6 Top-level module
 
 `ifdef DROMAJO
 import "DPI-C" function void dromajo_trap(int     hart_id,
@@ -23,13 +23,13 @@ import "DPI-C" function void init_dromajo(string cfg_f_name);
 `endif
 
 
-module ariane import ariane_pkg::*; #(
+module cva6 import ariane_pkg::*; #(
   parameter ariane_pkg::ariane_cfg_t ArianeCfg     = ariane_pkg::ArianeDefaultConfig
 ) (
   input  logic                         clk_i,
   input  logic                         rst_ni,
   // Core ID, Cluster ID and boot address are considered more or less static
-  input  logic [riscv::XLEN-1:0]       boot_addr_i,  // reset boot address
+  input  logic [riscv::VLEN-1:0]       boot_addr_i,  // reset boot address
   input  logic [riscv::XLEN-1:0]       hart_id_i,    // hart id in a multicore environment (reflected in a CSR)
 
   // Interrupt inputs
@@ -261,7 +261,7 @@ module ariane import ariane_pkg::*; #(
     .flush_i             ( flush_ctrl_if                 ), // not entirely correct
     .flush_bp_i          ( 1'b0                          ),
     .debug_mode_i        ( debug_mode                    ),
-    .boot_addr_i         ( boot_addr_i[riscv::XLEN-1:0]  ),
+    .boot_addr_i         ( boot_addr_i[riscv::VLEN-1:0]  ),
     .icache_dreq_i       ( icache_dreq_cache_if          ),
     .icache_dreq_o       ( icache_dreq_if_cache          ),
     .resolved_branch_i   ( resolved_branch               ),
@@ -532,7 +532,7 @@ module ariane import ariane_pkg::*; #(
     .halt_csr_o             ( halt_csr_ctrl                 ),
     .commit_instr_i         ( commit_instr_id_commit        ),
     .commit_ack_i           ( commit_ack                    ),
-    .boot_addr_i            ( boot_addr_i[riscv::XLEN-1:0]  ),
+    .boot_addr_i            ( boot_addr_i[riscv::VLEN-1:0]  ),
     .hart_id_i              ( hart_id_i[riscv::XLEN-1:0]    ),
     .ex_i                   ( ex_commit                     ),
     .csr_op_i               ( csr_op_commit_csr             ),
@@ -718,7 +718,7 @@ module ariane import ariane_pkg::*; #(
   );
   assign dcache_commit_wbuffer_not_ni = 1'b1;
 `endif
-/*
+
   // -------------------
   // Parameter Check
   // -------------------
@@ -959,5 +959,5 @@ module ariane import ariane_pkg::*; #(
       rvfi_o[i].pc_rdata = commit_instr_id_commit[i].pc;
     end
 `endif
-*/
+
 endmodule // ariane

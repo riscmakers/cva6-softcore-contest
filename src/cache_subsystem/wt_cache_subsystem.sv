@@ -94,10 +94,10 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
 
   `ifdef RISCMAKERS_DCACHE
 
-  dcache #(
+  riscmakers_dcache #(
     .RdAmoTxId       ( 1             ),
     .ArianeCfg       ( ArianeCfg     )
-  ) i_wt_dcache (
+  ) i_riscmakers_dcache (
     .clk_i           ( clk_i                   ),
     .rst_ni          ( rst_ni                  ),
     .enable_i        ( dcache_enable_i         ), // not used (no bypassing implemented)

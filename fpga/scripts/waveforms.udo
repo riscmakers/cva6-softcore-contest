@@ -20,18 +20,7 @@ if ![batch_mode] {
 add wave -noupdate ${TOPLEVEL_PATH}/clk_i
 add wave -noupdate ${TOPLEVEL_PATH}/issue_stage_i/i_issue_read_operands/stall
 
-add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_wt_dcache/req_ports_i[1]
-add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_wt_dcache/req_ports_i[2]
-add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_wt_dcache/miss_o
-
-add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_wt_dcache/mem_data_req_o
-add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_wt_dcache/mem_data_o
-add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_wt_dcache/mem_data_ack_i
-add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_wt_dcache/mem_rtrn_vld_i
-add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_wt_dcache/mem_rtrn_i
-
-add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_wt_dcache/req_ports_o[1]
-add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_wt_dcache/req_ports_o[2]
+add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/*
 
 # performance counters
 add wave -noupdate -group performance ${TOPLEVEL_PATH}/i_perf_counters/l1_icache_miss_i 

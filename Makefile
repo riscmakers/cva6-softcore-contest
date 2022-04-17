@@ -42,7 +42,7 @@ questa_version ?= ${QUESTASIM_VERSION}
 # traget option
 target-options ?=
 # additional definess
-defines        ?= WT_DCACHE
+#defines        ?= WT_DCACHE
 # test name for torture runs (binary name)
 test-location  ?= output/test
 # set to either nothing or -log
@@ -79,6 +79,7 @@ LIB_XILINX_QUESTA_PATH := $(root-dir)fpga/lib_xilinx_questa
 ariane_pkg := include/riscv_pkg.sv                          \
               src/riscv-dbg/src/dm_pkg.sv                   \
               include/ariane_pkg.sv                         \
+              include/riscmakers_dcache_pkg.sv              \
               include/cv32a6_imac_sv0_config_pkg.sv         \
               include/cvxif_pkg.sv                          \
               include/std_cache_pkg.sv                      \
@@ -125,6 +126,7 @@ src :=  $(filter-out src/ariane_regfile.sv, $(wildcard src/*.sv))              \
         $(wildcard src/frontend/*.sv)                                          \
         $(filter-out src/cache_subsystem/std_no_dcache.sv,                     \
         $(wildcard src/cache_subsystem/*.sv))                                  \
+        $(wildcard src/riscmakers/*.sv)                                        \
         $(wildcard bootrom/*.sv)                                               \
         $(wildcard src/clint/*.sv)                                             \
         $(wildcard fpga/src/axi2apb/src/*.sv)                                  \

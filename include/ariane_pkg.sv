@@ -151,6 +151,9 @@ package ariane_pkg;
     // we could in principle do without the commit queue in this case, but the timing degrades if we do that due
     // to longer paths into the commit stage
     localparam int unsigned DEPTH_COMMIT = 4;
+`elsif RISCMAKERS_DCACHE
+    // just copy what the value is below (not currently sure what the best value is)
+    localparam int unsigned DEPTH_COMMIT = 8;
 `else
     // allocate more space for the commit buffer to be on the save side, this needs to be a power of two
     localparam int unsigned DEPTH_COMMIT = 8;
@@ -425,17 +428,28 @@ package ariane_pkg;
     localparam int unsigned DCACHE_TAG_WIDTH   = riscv::PLEN - DCACHE_INDEX_WIDTH;
 `else
     // I$
-		localparam int unsigned CONFIG_L1I_SIZE    = 16*1024;
+	localparam int unsigned CONFIG_L1I_SIZE    = 16*1024;
     localparam int unsigned ICACHE_SET_ASSOC   = 4; // Must be between 4 to 64
     localparam int unsigned ICACHE_INDEX_WIDTH = $clog2(CONFIG_L1I_SIZE / ICACHE_SET_ASSOC);  // in bit, contains also offset width
     localparam int unsigned ICACHE_TAG_WIDTH   = riscv::PLEN-ICACHE_INDEX_WIDTH;  // in bit
     localparam int unsigned ICACHE_LINE_WIDTH  = 128; // in bit
+
     // D$
-		localparam int unsigned CONFIG_L1D_SIZE    = 32*1024;
-	  localparam int unsigned DCACHE_SET_ASSOC   = 8; // Must be between 4 to 64
-    localparam int unsigned DCACHE_INDEX_WIDTH = $clog2(CONFIG_L1D_SIZE / DCACHE_SET_ASSOC);  // in bit, contains also offset width
-    localparam int unsigned DCACHE_TAG_WIDTH   = riscv::PLEN-DCACHE_INDEX_WIDTH;  // in bit
-    localparam int unsigned DCACHE_LINE_WIDTH  = 128; // in bit
+    `ifdef RISCMAKERS_DCACHE
+        localparam int unsigned CONFIG_L1D_SIZE    = 32*1024;
+        localparam int unsigned DCACHE_SET_ASSOC   = 1; // direct mapped
+        localparam int unsigned DCACHE_INDEX_WIDTH = $clog2(CONFIG_L1D_SIZE / DCACHE_SET_ASSOC); // in bit, contains also offset width
+        localparam int unsigned DCACHE_TAG_WIDTH   = riscv::PLEN-DCACHE_INDEX_WIDTH; // in bit
+        localparam int unsigned DCACHE_LINE_WIDTH  = 128; // in bit
+
+    `else // default Ariane cache
+        localparam int unsigned CONFIG_L1D_SIZE    = 32*1024;
+        localparam int unsigned DCACHE_SET_ASSOC   = 8; // Must be between 4 to 64
+        localparam int unsigned DCACHE_INDEX_WIDTH = $clog2(CONFIG_L1D_SIZE / DCACHE_SET_ASSOC);  // in bit, contains also offset width
+        localparam int unsigned DCACHE_TAG_WIDTH   = riscv::PLEN-DCACHE_INDEX_WIDTH;  // in bit
+        localparam int unsigned DCACHE_LINE_WIDTH  = 128; // in bit
+    `endif
+
 `endif
 
     localparam bit CVXIF_PRESENT = cva6_config_pkg::CVA6ConfigCvxifEn;

@@ -92,6 +92,33 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
   );
 
 
+  `ifdef RISCMAKERS_DCACHE
+
+  dcache #(
+    .RdAmoTxId       ( 1             ),
+    .ArianeCfg       ( ArianeCfg     )
+  ) i_wt_dcache (
+    .clk_i           ( clk_i                   ),
+    .rst_ni          ( rst_ni                  ),
+    .enable_i        ( dcache_enable_i         ), // not used (no bypassing implemented)
+    .flush_i         ( dcache_flush_i          ), // not used
+    .flush_ack_o     ( dcache_flush_ack_o      ), // not used
+    .miss_o          ( dcache_miss_o           ), 
+    .wbuffer_empty_o ( wbuffer_empty_o         ), // not used
+    .wbuffer_not_ni_o ( wbuffer_not_ni_o       ), // not used
+    .amo_req_i       ( dcache_amo_req_i        ), // not used
+    .amo_resp_o      ( dcache_amo_resp_o       ), // not used
+    .req_ports_i     ( dcache_req_ports_i      ),
+    .req_ports_o     ( dcache_req_ports_o      ),
+    .mem_rtrn_vld_i  ( adapter_dcache_rtrn_vld ),
+    .mem_rtrn_i      ( adapter_dcache          ),
+    .mem_data_req_o  ( dcache_adapter_data_req ),
+    .mem_data_ack_i  ( adapter_dcache_data_ack ),
+    .mem_data_o      ( dcache_adapter          )
+  );
+
+  `else
+
   // Note:
   // Ports 0/1 for PTW and LD unit are read only.
   // they have equal prio and are RR arbited
@@ -120,6 +147,8 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
     .mem_data_ack_i  ( adapter_dcache_data_ack ),
     .mem_data_o      ( dcache_adapter          )
   );
+
+  `endif
 
 
 ///////////////////////////////////////////////////////

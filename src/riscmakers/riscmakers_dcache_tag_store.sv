@@ -65,8 +65,17 @@ module dcache_tag_store #(
         // reset to 0 
         //pragma translate_off
         if (!rst_ni) begin
+            automatic logic [DATA_WIDTH-1:0] val;
             for (int unsigned k = 0; k < NUM_WORDS; k++) begin
-                ram[k] = '0;
+                // for debugging purposes, 
+                `ifndef VERILATOR
+                    void'(randomize(val));
+                `endif
+                
+                ram[k] = val;
+                // but the valid bit has to be cleared
+                ram[k][TAG_STORE_VALID_BIT_POSITION] = 1'b0;
+
             end
         end 
         else

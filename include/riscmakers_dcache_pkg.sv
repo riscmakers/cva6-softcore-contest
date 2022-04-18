@@ -94,7 +94,7 @@ package dcache_pkg;
         input logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cpu_block_offset,
         input logic [1:0] data_transfer_size
     );
-        automatic riscv::xlen_t word;
+        automatic riscv::xlen_t word = '0; // otherwise sim shows unknown values on the data output vector;
         automatic logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cache_block_offset = cpu_to_cache_block_offset(cpu_block_offset, data_transfer_size);
 
         unique case(data_transfer_size)
@@ -118,7 +118,7 @@ package dcache_pkg;
         input logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cpu_block_offset,
         input logic [1:0] data_transfer_size
     );
-        automatic logic [ariane_pkg::DCACHE_LINE_WIDTH-1:0] cache_block;
+        automatic logic [ariane_pkg::DCACHE_LINE_WIDTH-1:0] cache_block = '0; // otherwise sim shows unknown values on the data output vector
         automatic logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cache_block_offset = cpu_to_cache_block_offset(cpu_block_offset, data_transfer_size);
 
         unique case(data_transfer_size)

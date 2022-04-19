@@ -38,13 +38,6 @@ package dcache_pkg;
         WAIT_MEMORY_BYPASS_DONE     // request is not cached
     } dcache_state_t;
 
-    // memory request type (Load Unit => Load or Store Unit => Store)
-    typedef enum logic [1:0] {
-        CPU_REQ_NONE=0, // no active request
-        CPU_REQ_LOAD=1,     
-        CPU_REQ_STORE=2  
-    } memory_request_t;
-
     // dcache has multiple request ports (3 by default)
     // these numbers correspond to which unit controls the port
     typedef enum logic [1:0] {

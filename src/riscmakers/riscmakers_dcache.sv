@@ -66,12 +66,13 @@ module riscmakers_dcache
     dcache_state_t current_state_q, next_state_d; // FSM state register
     logic miss_load;  // we missed on a load request (high for 1 clock cycle)
     logic miss_store; // we missed on a store request (high for 1 clock cycle)
-    logic bypass_cache; // just testing memory interface
+    logic bypass_cache; // debugging flag used to test input/output CPU <--> memory interface
 
     // ----- flags ----
-    memory_request_t current_request; // do we have a request, and if so, from which port?
-    logic is_cache_servicing_request; // to know when to enable certain registers
-    logic is_cache_ready_for_request; // can cache can service a request?
+    logic pending_request; // do we have an active request from one of the request ports?
+    request_port_select_t current_request_port; // from which port are we currently serving the request?
+    logic is_cache_ready_for_request; // can cache can service a new request? i.e. register the input request port data?
+
     // logic tag_store_compare_done, tag_store_compare_done_neg_q, tag_store_compare_done_pos_q; // flag to know when a tag comparision is done 
     // logic tag_compare_hit; // cache hit
     // logic writeback_flag_d, writeback_flag_q, writeback_flag_en; // set a flag when we need to writeback data in the cache
@@ -83,7 +84,6 @@ module riscmakers_dcache
     //
     //       finally, if we have a cache miss, we need to remember the address and 
     //       data after the main memory transaction is done 
-    request_port_select_t req_port_select; // mux select for request port, to be handled by FSM
     dcache_req_i_t req_port_i_d, req_port_i_q; 
 
     // ----- cache stores -------
@@ -93,7 +93,7 @@ module riscmakers_dcache
     // ------ address -------
     riscv::xlen_t req_port_address; // the complete physical address used by output memory request port during load
     // riscv::xlen_t dcache_address; // the complete physical address used by output memory request port during writeback
-    logic [dcache_pkg::DCACHE_CL_IDX_WIDTH-1:0] req_port_block_index; // the current block index bits (indexes into RAM stores)
+    //logic [dcache_pkg::DCACHE_CL_IDX_WIDTH-1:0] req_port_block_index; // the current block index bits (indexes into RAM stores)
     logic [dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] req_port_block_offset;// selected byte from cacheblock
 
     // ******************************
@@ -102,8 +102,8 @@ module riscmakers_dcache
 
     // ----- miscellaneous ----
     assign miss_o = miss_store | miss_load; // for Ariane performance counters (active for half a clock cycle)
-    assign is_cache_servicing_request = ( (current_request != CPU_REQ_NONE) 
-                                          && (is_cache_ready_for_request) );
+    assign current_request_port = (req_ports_i_d.data_we) ? STORE_UNIT_PORT : LOAD_UNIT_PORT;
+    assign pending_request = req_ports_i[LOAD_UNIT_PORT].data_req | req_ports_i[STORE_UNIT_PORT].data_req
 
     // Note: req_port_i_d.address_index will always equal the index to the stores.
     //       since we're not writing to any other set in cache, its just the tag that could be different
@@ -115,7 +115,7 @@ module riscmakers_dcache
     //              DCACHE_CL_IDX_WIDTH = 9 bits
     //              DCACHE_OFFSET_WIDTH = 3 bits
     // so we would select bits 11:3 for the cache block index, and bits 2:0 for the cache block offset
-    assign req_port_block_index = req_port_i_d.address_index[dcache_pkg::DCACHE_INDEX_WIDTH-1:dcache_pkg::DCACHE_OFFSET_WIDTH];
+    // assign req_port_block_index = req_port_i_d.address_index[dcache_pkg::DCACHE_INDEX_WIDTH-1:dcache_pkg::DCACHE_OFFSET_WIDTH];
 
     // select the block offset bits from the input address
     assign req_port_block_offset = req_port_i_d.address_index[dcache_pkg::DCACHE_OFFSET_WIDTH-1:0];
@@ -186,32 +186,16 @@ module riscmakers_dcache
     //       an input request is sent. the request port data is still available 
     //       on that first clock edge (thats also why we grab the input to the register).
     //       thus, we mux the appropiate port from req_ports_i with the req_port_i_q. 
-    always_comb begin: register_port_select
-        if (current_request == CPU_REQ_LOAD) begin
-            req_port_select = LOAD_UNIT_PORT;
-        end 
-        else if (current_request == CPU_REQ_STORE) begin
-            req_port_select = STORE_UNIT_PORT;
-        end 
-        else begin
-            req_port_select = LOAD_UNIT_PORT;
-        end         
-    end 
 
-    always_comb begin: register_request_port_data
-         // this also (potentially) saves some energy, as we won't latch the 
-         // request port data if we aren't currently servicing a request
-        if (is_cache_servicing_request) begin
-            // is it a load request? (load unit has priority over the store unit)
-            if (current_request == CPU_REQ_LOAD) begin
-                req_port_i_d = req_ports_i[LOAD_UNIT_PORT]; // mux select the load unit port  
+    always_comb begin: register_request_port_input
+         // don't change register state if we are currently serving a request or if
+         // it's unnecessary (there is no active request) since that saves energy
+        if (is_cache_ready_for_request & pending_request) begin
+            if (req_ports_i[LOAD_UNIT_PORT].data_req) begin
+                req_port_i_d = req_ports_i[LOAD_UNIT_PORT]; // load priority
             end 
-            // ok, so is it a store request?
-            else if (current_request == CPU_REQ_STORE) begin
-                req_port_i_d = req_ports_i[STORE_UNIT_PORT]; // mux select the store unit port
-            end 
-            else begin
-                req_port_i_d = req_port_i_q;    
+            else begin 
+                req_port_i_d = req_ports_i[STORE_UNIT_PORT]; 
             end 
         end 
         else begin
@@ -219,19 +203,7 @@ module riscmakers_dcache
         end 
     end 
 
-    always_comb begin: check_request
-        if (req_ports_i[LOAD_UNIT_PORT].data_req) begin
-            current_request = CPU_REQ_LOAD;
-        end 
-        else if (req_ports_i[STORE_UNIT_PORT].data_req) begin
-            current_request = CPU_REQ_STORE;
-        end 
-        else begin
-            current_request = CPU_REQ_NONE;
-        end 
-    end
-
-    always_comb begin: can_cache_service_request
+    always_comb begin: is_cache_ready_for_request_flag
         // in these states we could service another request (because we have a blocking cache)
         if (current_state_q == IDLE || current_state_q == LOAD_CACHE_HIT) begin
             is_cache_ready_for_request = 1'b1;
@@ -300,8 +272,6 @@ module riscmakers_dcache
         //       so that's why this is commented out
         req_ports_o[PTW_PORT] = '0; // PTW (as well as MMU) is not implemented
         req_ports_o[STORE_UNIT_PORT].data_rvalid = 1'b0;
-        req_ports_o[STORE_UNIT_PORT].data_rdata = '0;
-
 
         // **********************
         // State logic
@@ -309,7 +279,10 @@ module riscmakers_dcache
         case(current_state_q)
 
             IDLE : begin
-                service_request();    
+                if (pending_request) begin
+                    req_ports_o[current_request_port].data_gnt = 1'b1;  // grant the request
+                    service_request();  
+                end
             end
 
             // LOAD_CACHE_HIT : begin
@@ -432,16 +405,18 @@ module riscmakers_dcache
             end 
 
             WAIT_MEMORY_BYPASS_DONE : begin
-                if ( mem_rtrn_vld_i && ( mem_rtrn_i.rtype == ( req_port_i_d.data_we ? DCACHE_STORE_ACK : DCACHE_LOAD_ACK ) ) ) begin // main memory finished writeback
+                if ( mem_rtrn_vld_i && 
+                   ( mem_rtrn_i.rtype == ( (current_request_port == STORE_UNIT_PORT) ? DCACHE_STORE_ACK : DCACHE_LOAD_ACK ) ) ) begin // main memory finished writeback
 
-                    // let the CPU know that the data is available from main memory
-                    automatic logic [1:0] port = (req_port_i_d.data_we ? STORE_UNIT_PORT : LOAD_UNIT_PORT);
-                    req_ports_o[port].data_rdata = cache_block_to_cpu_word(
-                                                                mem_rtrn_i.data,
-                                                                req_port_block_offset,
-                                                                req_port_i_d.data_size);
-                    req_ports_o[port].data_rvalid = 1'b1;
-                   
+                    // let the CPU know that the data is available from main memory (if it is a load)
+                    req_ports_o[current_request_port].data_rdata = cache_block_to_cpu_word(
+                                                                    mem_rtrn_i.data,
+                                                                    req_port_block_offset,
+                                                                    req_port_i_d.data_size);
+                    if (current_request_port == LOAD_UNIT_PORT) begin
+                        req_ports_o[current_request_port].data_rvalid = 1'b1; // stores do not need to be ack'ed
+                    end
+
                     next_state_d = IDLE;
                 end 
             end 
@@ -563,13 +538,10 @@ module riscmakers_dcache
     // ***************************************
 
     function automatic void service_request();
-        // do we have a request? 
-        if (is_cache_servicing_request) begin
-            req_ports_o[req_port_select].data_gnt = 1'b1;  // grant the request
 
             // do we have a non cacheable address? 
             if (bypass_cache) begin
-                mem_data_o.rtype = (req_port_i_d.data_we) ? DCACHE_STORE_REQ : DCACHE_LOAD_REQ;
+                mem_data_o.rtype = (current_request_port == STORE_UNIT_PORT) ? DCACHE_STORE_REQ : DCACHE_LOAD_REQ;
                 mem_data_o.size = {1'b0, req_port_i_d.data_size};
                 mem_data_o.paddr = cpu_to_memory_address(
                                     req_port_address, 
@@ -595,7 +567,7 @@ module riscmakers_dcache
 
             //         // did we get a cache block hit?
             //         if (tag_compare_hit) begin
-            //             if (current_request == CPU_REQ_LOAD) begin 
+            //             if (current_request_port == CPU_REQ_LOAD) begin 
             //                 tag_store.enable = 1'b0;        // tags, valid and dirty bits don't need to change
             //                 data_store.write_enable = 1'b0; // set to read
             //                 data_store.enable = 1'b1;       // data will be available on the next rising clock edge
@@ -631,7 +603,7 @@ module riscmakers_dcache
             //                 writeback_flag_en = 1'b1;
             //             end
             //             // missed on a CPU load
-            //             if (current_request == CPU_REQ_LOAD) begin
+            //             if (current_request_port == CPU_REQ_LOAD) begin
             //                 miss_load = 1'b1; 
 
             //                 // we don't need to use the tag store anymore because we won't writeback 
@@ -660,12 +632,6 @@ module riscmakers_dcache
             //         end 
             //     end 
             // end 
-        end 
-        else begin
-            // no request and we are done with main memory, so set to IDLE because this 
-            // function could have been called in a different state
-            next_state_d = IDLE;
-        end 
     endfunction
 
 
@@ -774,8 +740,8 @@ module riscmakers_dcache
         assert property (@(posedge clk_i)(req_ports_i[STORE_UNIT_PORT].data_we == 1))
             else begin $warning("Store unit port data_we is not always == 1"); end
 
-        assert property (@(posedge clk_i)(is_cache_servicing_request == req_ports_o[req_port_select].data_gnt))
-            else begin $warning("Request granted at an inappropiate moment"); end
+        // assert property (@(posedge clk_i)(is_cache_servicing_request == req_ports_o[current_request_port].data_gnt))
+        //     else begin $warning("Request granted at an inappropiate moment"); end
 
         // Note: these asserts fail at the beginning of the simulation ***** later on they work
         // read it like: AT the clock edge, not AFTER the clock edge passes. thus ==

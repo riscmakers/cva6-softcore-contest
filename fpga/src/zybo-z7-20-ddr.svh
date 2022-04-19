@@ -8,7 +8,7 @@
 // `define WB_DCACHE
 
 // write-through cache
-//`define WT_DCACHE
+// `define WT_DCACHE
 
 // RISC Makers data cache
 `define RISCMAKERS_DCACHE

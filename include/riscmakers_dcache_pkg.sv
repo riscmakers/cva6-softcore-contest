@@ -1,5 +1,26 @@
 package dcache_pkg;
 
+
+    // eventually change these to be specific to ariane. From the CPU perspective, I think
+    // it is forced to use 12 bit index widths, whereas we can do a simple translation
+    // and use whatever index we want (from the main memory perspective its the same)
+    // I think that if we're given an address, the cache can intrepet it however it pleases
+    // it can thus have a different cache index width, its irrelevant to the outside world
+    // for now keep same values, just assure that index width = 12, because the width corresponds
+    // to a field type size in dcache_req_i_t, we have to respect that (later we can concatenate that
+    // to a long vector and reintrepet the address)
+    localparam int unsigned CONFIG_L1D_SIZE    = 4*1024; // assures that index width is 12 bits
+    localparam int unsigned DCACHE_SET_ASSOC   = 1; // direct mapped
+    // seems that index width has to be = 12 here, because of the virtual mapping 
+    // see wt_dcache: cache index width can be maximum 12bit since VM uses 4kB pages
+    localparam int unsigned DCACHE_INDEX_WIDTH = $clog2(CONFIG_L1D_SIZE / DCACHE_SET_ASSOC); // in bit, contains also offset width 
+    localparam int unsigned DCACHE_TAG_WIDTH   = riscv::PLEN-DCACHE_INDEX_WIDTH; // in bit
+    localparam int unsigned DCACHE_LINE_WIDTH  = 128; // in bit
+    localparam DCACHE_OFFSET_WIDTH     = $clog2(dcache_pkg::DCACHE_LINE_WIDTH/8);
+    localparam DCACHE_NUM_WORDS        = 2**(dcache_pkg::DCACHE_INDEX_WIDTH-DCACHE_OFFSET_WIDTH);
+    localparam DCACHE_CL_IDX_WIDTH     = $clog2(DCACHE_NUM_WORDS);// excluding byte offset
+    
+
     // *************************************
     // Types
     // *************************************
@@ -12,7 +33,9 @@ package dcache_pkg;
         WAIT_MEMORY_READ_ACK,       // wait for main memory to acknowledge read (load) request
         WAIT_MEMORY_READ_DONE,      // wait for main memory to return with read (load) data
         WAIT_MEMORY_WRITEBACK_ACK,  // wait for main memory to acknowledge writeback (store) request
-        WAIT_MEMORY_WRITEBACK_DONE  // wait for main memory to finish writeback (store) request
+        WAIT_MEMORY_WRITEBACK_DONE, // wait for main memory to finish writeback (store) request
+        WAIT_MEMORY_BYPASS_ACK,     // request is not cached
+        WAIT_MEMORY_BYPASS_DONE     // request is not cached
     } dcache_state_t;
 
     // memory request type (Load Unit => Load or Store Unit => Store)
@@ -34,7 +57,7 @@ package dcache_pkg;
     typedef struct packed {
         logic valid;     // valid bit
         logic dirty;     // dirty bit
-        logic [ariane_pkg::DCACHE_TAG_WIDTH-1:0] tag; // actual tag store data
+        logic [dcache_pkg::DCACHE_TAG_WIDTH-1:0] tag; // actual tag store data
     } tag_store_data_t;
 
     // tag store structure for bit enable (same as above because its bit enable)
@@ -51,9 +74,9 @@ package dcache_pkg;
     typedef struct packed {
         logic enable; // is the data store enabled?
         logic write_enable; // are we reading or writing to data store?
-        logic [ariane_pkg::DCACHE_LINE_WIDTH-1:0] data_i; // contains all data read from data store
-        logic [ariane_pkg::DCACHE_LINE_WIDTH-1:0] data_o; // contains all data written to data store
-        logic [ariane_pkg::DCACHE_LINE_WIDTH/8-1:0] byte_enable; // vector that enables individual write bytes for data store
+        logic [dcache_pkg::DCACHE_LINE_WIDTH-1:0] data_i; // contains all data read from data store
+        logic [dcache_pkg::DCACHE_LINE_WIDTH-1:0] data_o; // contains all data written to data store
+        logic [dcache_pkg::DCACHE_LINE_WIDTH/8-1:0] byte_enable; // vector that enables individual write bytes for data store
     } data_store_t;
 
     // *************************************
@@ -76,8 +99,12 @@ package dcache_pkg;
     localparam int unsigned DCACHE_TAG_STORE_DATA_WIDTH = $bits(tag_store_data_t); // tag width plus valid and dirty bit
     // tag store output data (ordering): {valid bit,  dirty bit,  tag data}
     //                                      (MSB)      (MSB-1)     (MSB-2)...
-    parameter int unsigned TAG_STORE_DIRTY_BIT_POSITION = ariane_pkg::DCACHE_TAG_WIDTH; // MSB-1
+    parameter int unsigned TAG_STORE_DIRTY_BIT_POSITION = dcache_pkg::DCACHE_TAG_WIDTH; // MSB-1
     parameter int unsigned TAG_STORE_VALID_BIT_POSITION = TAG_STORE_DIRTY_BIT_POSITION+1; // MSB
+
+
+
+
 
     // *************************************
     // Functions
@@ -90,12 +117,12 @@ package dcache_pkg;
     // where are we going to grab 32 bits from (for example)? need  to make
     // sure the physical address block offset is masked appropiately 
     function automatic riscv::xlen_t cache_block_to_cpu_word (
-        input logic [ariane_pkg::DCACHE_LINE_WIDTH-1:0] cache_block,
-        input logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cpu_block_offset,
+        input logic [dcache_pkg::DCACHE_LINE_WIDTH-1:0] cache_block,
+        input logic [dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] cpu_block_offset,
         input logic [1:0] data_transfer_size
     );
         automatic riscv::xlen_t word = '0; // otherwise sim shows unknown values on the data output vector;
-        automatic logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cache_block_offset = cpu_to_cache_block_offset(cpu_block_offset, data_transfer_size);
+        automatic logic [dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] cache_block_offset = cpu_to_cache_block_offset(cpu_block_offset, data_transfer_size);
 
         unique case(data_transfer_size)
             CPU_MEM_REQ_TYPE_BYTE: word[7:0] = cache_block[cache_block_offset*8 +: 8];  // byte
@@ -113,13 +140,13 @@ package dcache_pkg;
     // (8 bit granularity) but if its a 4 byte transfer, then we can select only 4 different starting locations
     // because now we have a 32 bit granularity
     // note that offset 
-    function automatic logic [ariane_pkg::DCACHE_LINE_WIDTH-1:0] cpu_word_to_cache_block (
+    function automatic logic [dcache_pkg::DCACHE_LINE_WIDTH-1:0] cpu_word_to_cache_block (
         input riscv::xlen_t word,
-        input logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cpu_block_offset,
+        input logic [dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] cpu_block_offset,
         input logic [1:0] data_transfer_size
     );
-        automatic logic [ariane_pkg::DCACHE_LINE_WIDTH-1:0] cache_block = '0; // otherwise sim shows unknown values on the data output vector
-        automatic logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cache_block_offset = cpu_to_cache_block_offset(cpu_block_offset, data_transfer_size);
+        automatic logic [dcache_pkg::DCACHE_LINE_WIDTH-1:0] cache_block = '0; // otherwise sim shows unknown values on the data output vector
+        automatic logic [dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] cache_block_offset = cpu_to_cache_block_offset(cpu_block_offset, data_transfer_size);
 
         unique case(data_transfer_size)
             CPU_MEM_REQ_TYPE_BYTE: cache_block[cache_block_offset*8 +: 8] = word[7:0];  // byte
@@ -140,11 +167,11 @@ package dcache_pkg;
   // accessing half word locations. thus the granularity increased by 2, and thus
   // there is a superflous bit in the index (we set this to 0).
   // ... etc.
-  function automatic logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cpu_to_cache_block_offset(
-        input logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cpu_block_offset,
+  function automatic logic [dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] cpu_to_cache_block_offset(
+        input logic [dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] cpu_block_offset,
         input logic [1:0]  data_transfer_size
     );
-        automatic logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cache_block_offset = cpu_block_offset;
+        automatic logic [dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] cache_block_offset = cpu_block_offset;
 
         unique case (data_transfer_size)
             CPU_MEM_REQ_TYPE_BYTE: ; // each bit of the block offset address corresponds to a byte offset, so dont clear any bits
@@ -157,6 +184,25 @@ package dcache_pkg;
         return cache_block_offset;
     endfunction
 
+  // similiar to above, except this is used when we are requesting data from main memory
+  function automatic logic [riscv::XLEN-1:0] cpu_to_memory_address(
+        input logic [riscv::XLEN-1:0] cpu_address,
+        input logic [2:0]  data_transfer_size
+    );
+        automatic logic [riscv::XLEN-1:0] memory_address = cpu_address;
+
+        unique case (data_transfer_size)
+            CACHE_MEM_REQ_SIZE_ONE_BYTE: ; // each bit of the block offset address corresponds to a byte offset, so dont clear any bits
+            CACHE_MEM_REQ_SIZE_TWO_BYTES: memory_address[0:0] = '0; // each bit of the block offset address corresponds to a half word offset, so remove the first bit
+            CACHE_MEM_REQ_SIZE_FOUR_BYTES: memory_address[1:0] = '0; // each bit of the block offset address corresponds to a word offset, so remove the first 2 bits 
+            CACHE_MEM_REQ_SIZE_EIGHT_BYTES: memory_address[2:0] = '0; // each bit of the block offset address corresponds to a double offset, so remove the first 3 bits
+            CACHE_MEM_REQ_SIZE_CACHEBLOCK: memory_address[dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] = '0; // cache line size, so the block offset address is not used
+            default: ;
+        endcase
+
+        return memory_address;
+    endfunction
+
     // !!!!!!!!!!!!! NEED TO ADD FUNCTION THAT DETERMINES BYTE ENABLE VECTOR FOR CACHE BLOCK
     // DEPENDING ON DATA SIZE TRANSFER..... !!!!!!!
     // for example, if we are transfering 1 byte, where in the cache line are we writing, etc. So this does something similiar to
@@ -165,18 +211,18 @@ package dcache_pkg;
     // we can simply use the byte_enable that was included in the req_i_data.data_be and depending on the offset, we shift that 
     // the bottom line is fine I think, except for the req_port_block_offset. this needs to be the physically aligned one
     // that is changed depending on the size !
-    //data_store.byte_enable = ( { {(ariane_pkg::DCACHE_LINE_WIDTH/8-riscv::XLEN/8){1'b0}} , req_port_i_d.data_be } )  << req_port_block_offset;
+    //data_store.byte_enable = ( { {(dcache_pkg::DCACHE_LINE_WIDTH/8-riscv::XLEN/8){1'b0}} , req_port_i_d.data_be } )  << req_port_block_offset;
 
-    // question, can I do ( { {ariane_pkg::DCACHE_LINE_WIDTH/8{1'b0, req_port_i_d.data_be}} ) ? no i dont think so
-    function automatic logic [(2**wt_cache_pkg::DCACHE_OFFSET_WIDTH)-1:0] cpu_to_cache_byte_enable (
+    // question, can I do ( { {dcache_pkg::DCACHE_LINE_WIDTH/8{1'b0, req_port_i_d.data_be}} ) ? no i dont think so
+    function automatic logic [(2**dcache_pkg::DCACHE_OFFSET_WIDTH)-1:0] cpu_to_cache_byte_enable (
         input logic [(riscv::XLEN/8)-1:0] byte_enable_cpu,
-        input logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cpu_block_offset,
+        input logic [dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] cpu_block_offset,
         input logic [1:0]  data_transfer_size
     );
-        automatic logic [(2**wt_cache_pkg::DCACHE_OFFSET_WIDTH)-1:0] byte_enable_cache;
-        automatic logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] cache_block_offset = cpu_to_cache_block_offset(cpu_block_offset, data_transfer_size);
+        automatic logic [(2**dcache_pkg::DCACHE_OFFSET_WIDTH)-1:0] byte_enable_cache;
+        automatic logic [dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] cache_block_offset = cpu_to_cache_block_offset(cpu_block_offset, data_transfer_size);
 
-        byte_enable_cache = ( { {((2**wt_cache_pkg::DCACHE_OFFSET_WIDTH)-riscv::XLEN/8){1'b0}} , byte_enable_cpu } ) << cache_block_offset;
+        byte_enable_cache = ( { {((2**dcache_pkg::DCACHE_OFFSET_WIDTH)-riscv::XLEN/8){1'b0}} , byte_enable_cpu } ) << cache_block_offset;
         
         return byte_enable_cache;
     endfunction

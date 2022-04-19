@@ -42,7 +42,8 @@ questa_version ?= ${QUESTASIM_VERSION}
 # traget option
 target-options ?=
 # additional definess
-#defines        ?= WT_DCACHE
+# defines        ?= WT_DCACHE
+defines        ?= RISCMAKERS_DCACHE
 # test name for torture runs (binary name)
 test-location  ?= output/test
 # set to either nothing or -log

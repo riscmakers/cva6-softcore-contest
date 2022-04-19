@@ -40,8 +40,8 @@ import wt_cache_pkg::*;
 import dcache_pkg::*;
 
 module dcache_data_store #(
-    parameter int unsigned DATA_WIDTH = ariane_pkg::DCACHE_LINE_WIDTH,
-    parameter int unsigned NUM_WORDS  = wt_cache_pkg::DCACHE_NUM_WORDS
+    parameter int unsigned DATA_WIDTH = dcache_pkg::DCACHE_LINE_WIDTH,
+    parameter int unsigned NUM_WORDS  = dcache_pkg::DCACHE_NUM_WORDS
 )(
    input  logic                          clk_i,
    input  logic                          en_i,

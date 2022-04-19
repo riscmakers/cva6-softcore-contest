@@ -67,6 +67,7 @@ module riscmakers_dcache
     dcache_state_t current_state_q, next_state_d; // FSM state register
     logic miss_load;  // we missed on a load request (high for 1 clock cycle)
     logic miss_store; // we missed on a store request (high for 1 clock cycle)
+    logic bypass_cache; // just testing memory interface
 
     // ----- flags ----
     memory_request_t current_request; // do we have a request, and if so, from which port?
@@ -93,8 +94,8 @@ module riscmakers_dcache
     // ------ address -------
     riscv::xlen_t req_port_address; // the complete physical address used by output memory request port during load
     riscv::xlen_t dcache_address; // the complete physical address used by output memory request port during writeback
-    logic [wt_cache_pkg::DCACHE_CL_IDX_WIDTH-1:0] req_port_block_index; // the current block index bits (indexes into RAM stores)
-    logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] req_port_block_offset;// selected byte from cacheblock
+    logic [dcache_pkg::DCACHE_CL_IDX_WIDTH-1:0] req_port_block_index; // the current block index bits (indexes into RAM stores)
+    logic [dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] req_port_block_offset;// selected byte from cacheblock
 
     // ******************************
     // Continuous assignment signals
@@ -115,13 +116,14 @@ module riscmakers_dcache
     //              DCACHE_CL_IDX_WIDTH = 9 bits
     //              DCACHE_OFFSET_WIDTH = 3 bits
     // so we would select bits 11:3 for the cache block index, and bits 2:0 for the cache block offset
-    assign req_port_block_index = req_port_i_d.address_index[ariane_pkg::DCACHE_INDEX_WIDTH-1:wt_cache_pkg::DCACHE_OFFSET_WIDTH];
+    assign req_port_block_index = req_port_i_d.address_index[dcache_pkg::DCACHE_INDEX_WIDTH-1:dcache_pkg::DCACHE_OFFSET_WIDTH];
 
     // select the block offset bits from the input address
-    assign req_port_block_offset = req_port_i_d.address_index[wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0];
+    assign req_port_block_offset = req_port_i_d.address_index[dcache_pkg::DCACHE_OFFSET_WIDTH-1:0];
 
      // since we're only requesting a single memory transfer at a time, we can set this statically to 0
-    assign mem_data_o.tid = '0;
+    // assign mem_data_o.tid = wt_cache_pkg::CACHE_ID_WIDTH'b1;
+    assign mem_data_o.tid = 1;
 
     // tag comparision is done if we have the toggle flip-flop outputs in phase.
     // we need 2 flip flops changing state 90 degrees out of phase for the case where we have 
@@ -144,8 +146,8 @@ module riscmakers_dcache
 
     // Data store (RAM)
     dcache_data_store #(
-        .DATA_WIDTH(ariane_pkg::DCACHE_LINE_WIDTH),
-        .NUM_WORDS(wt_cache_pkg::DCACHE_NUM_WORDS)
+        .DATA_WIDTH(dcache_pkg::DCACHE_LINE_WIDTH),
+        .NUM_WORDS(dcache_pkg::DCACHE_NUM_WORDS)
     ) i_dcache_data_store (
         .clk_i(clk_i),
         .en_i(data_store.enable),
@@ -160,7 +162,7 @@ module riscmakers_dcache
     // Tag store (RAM)
     dcache_tag_store #(
         .DATA_WIDTH(dcache_pkg::DCACHE_TAG_STORE_DATA_WIDTH), 
-        .NUM_WORDS(wt_cache_pkg::DCACHE_NUM_WORDS)
+        .NUM_WORDS(dcache_pkg::DCACHE_NUM_WORDS)
     ) i_dcache_tag_store (
         .clk_i(clk_i),
         .en_i(tag_store.enable),
@@ -274,7 +276,7 @@ module riscmakers_dcache
         mem_data_req_o = 1'b0;
         mem_data_o.rtype = wt_cache_pkg::DCACHE_LOAD_REQ;
         mem_data_o.size = dcache_pkg::CACHE_MEM_REQ_SIZE_CACHEBLOCK; // value is more likely because there are more loads than stores
-        mem_data_o.nc = 1'b0;    // Not used?
+
         mem_data_o.data = '0;    // Registering this might save energy?
         mem_data_o.paddr = '0;   
 
@@ -318,7 +320,7 @@ module riscmakers_dcache
                 // bits, or I could directly write the expression
                 req_ports_o[LOAD_UNIT_PORT].data_rdata = cache_block_to_cpu_word(
                                                             data_store.data_i,
-                                                            req_port_i_q.address_index[wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0],
+                                                            req_port_i_q.address_index[dcache_pkg::DCACHE_OFFSET_WIDTH-1:0],
                                                             req_port_i_q.data_size);
                 req_ports_o[LOAD_UNIT_PORT].data_rvalid = 1'b1; // let the load unit know the data is available
                 service_request(); // free to service another request
@@ -398,9 +400,13 @@ module riscmakers_dcache
                     tag_store.enable = 1'b0; // we'll use this after the writeback
 
                     // start memory transfer
-                    mem_data_o.rtype = DCACHE_STORE_REQ;
+                    mem_data_o.rtype = wt_cache_pkg::DCACHE_STORE_REQ;
                     mem_data_o.size = {1'b0, req_port_i_d.data_size}; // because we only need to writeback data that was replaced by CPU
-                    mem_data_o.paddr = dcache_address; // because this is a writeback with tag bits from cache
+
+                    mem_data_o.paddr = cpu_to_memory_address(
+                                        dcache_address, 
+                                        mem_data_o.size); // because this is a writeback with tag bits from cache
+
                     mem_data_o.data = cache_block_to_cpu_word(
                                         data_store.data_i, // we're writing back cache data, not CPU data 
                                         req_port_block_offset,
@@ -420,6 +426,25 @@ module riscmakers_dcache
 
             WAIT_MEMORY_WRITEBACK_ACK : begin
                 next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_WRITEBACK_DONE : WAIT_MEMORY_WRITEBACK_ACK;
+            end 
+
+            WAIT_MEMORY_BYPASS_ACK : begin
+                next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_BYPASS_DONE : WAIT_MEMORY_BYPASS_ACK;
+            end 
+
+            WAIT_MEMORY_BYPASS_DONE : begin
+                if ( mem_rtrn_vld_i && ( mem_rtrn_i.rtype == ( req_port_i_d.data_we ? DCACHE_STORE_ACK : DCACHE_LOAD_ACK ) ) ) begin // main memory finished writeback
+
+                    // let the CPU know that the data is available from main memory
+                    automatic logic [1:0] port = (req_port_i_d.data_we ? STORE_UNIT_PORT : LOAD_UNIT_PORT);
+                    req_ports_o[port].data_rdata = cache_block_to_cpu_word(
+                                                                mem_rtrn_i.data,
+                                                                req_port_block_offset,
+                                                                req_port_i_d.data_size);
+                    req_ports_o[port].data_rvalid = 1'b1;
+                   
+                    next_state_d = IDLE;
+                end 
             end 
 
             WAIT_MEMORY_WRITEBACK_DONE : begin
@@ -481,13 +506,15 @@ module riscmakers_dcache
                         writeback_flag_en = 1'b1;
 
                         // start memory transfer
-                        mem_data_o.rtype = DCACHE_STORE_REQ;
+                        mem_data_o.rtype = wt_cache_pkg::DCACHE_STORE_REQ;
 
                         // note adding an extra bit in front of the data size because data_size field
                         // is only 2 bits wide, and can't request anything more than a word, whereas the
                         // memory request port can fetch a whole cacheblock 
                         mem_data_o.size = {1'b0, req_port_i_d.data_size}; // only writeback data that was replaced by CPU
-                        mem_data_o.paddr = dcache_address; // because this is a writeback with tag bits coming from cache
+                        mem_data_o.paddr = cpu_to_memory_address(
+                                            dcache_address, 
+                                            mem_data_o.size); // because this is a writeback with tag bits from cache
                         mem_data_o.data = cache_block_to_cpu_word(
                                             data_store.data_i, // we're writing back cache data, not CPU data 
                                             req_port_block_offset,
@@ -541,78 +568,98 @@ module riscmakers_dcache
         if (is_cache_servicing_request) begin
             req_ports_o[req_port_select].data_gnt = 1'b1;  // grant the request
 
-            // Note: enable tag comparision: cache hit result will be available on the next falling clock edge.
-            //       because this state won't change until the next rising clock edge, we can check for a cache hit.
-            //       be careful though, we have to wait until the comparision is done before continuing (falling edge)
-            //       otherwise we could be writing to the tag_store while we're trying read it (cache store miss)
-            tag_store.write_enable = 1'b0; // read tags
-            tag_store.enable = 1'b1;
+            // do we have a non cacheable address? 
+            if (bypass_cache) begin
+                mem_data_o.rtype = (req_port_i_d.data_we) ? DCACHE_STORE_REQ : DCACHE_LOAD_REQ;
+                mem_data_o.size = {1'b0, req_port_i_d.data_size};
+                mem_data_o.paddr = cpu_to_memory_address(
+                                    req_port_address, 
+                                    mem_data_o.size);
+                mem_data_o.data = req_port_i_d.data_wdata;
+                mem_data_req_o = 1'b1;
 
-            // are we done with the tag comparision?
-            if (tag_store_compare_done) begin
+                // did we get a load acknowledgement? if not, wait for one
+                next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_BYPASS_DONE : WAIT_MEMORY_BYPASS_ACK;
+            end 
 
-                // did we get a cache block hit?
-                if (tag_compare_hit) begin
-                    if (current_request == CPU_REQ_LOAD) begin 
-                        tag_store.enable = 1'b0;        // tags, valid and dirty bits don't need to change
-                        data_store.write_enable = 1'b0; // set to read
-                        data_store.enable = 1'b1;       // data will be available on the next rising clock edge
-                        next_state_d = LOAD_CACHE_HIT;
-                    end 
-                    else begin
-                        // since it's a store, we need to check the dirty bit 
-                        // (i.e. are we dirtying a cache block for the first time?)
-                        if (!tag_store.data_i.dirty) begin 
-                            // tag write occurs on next rising clock edge
-                            tag_store.enable = 1'b1;
-                            tag_store.write_enable = 1'b1;
-                            tag_store.bit_enable.dirty = 1'b1;
-                            tag_store.bit_enable.valid = 1'b0;
-                            tag_store.bit_enable.tag = '0;
-                            tag_store.data_o.dirty = 1'b1; 
-                            
-                        end
-                        // otherwise, we're done with the tag store
-                        else begin 
-                            tag_store.enable = 1'b0;
+            else begin
+
+
+                // Note: enable tag comparision: cache hit result will be available on the next falling clock edge.
+                //       because this state won't change until the next rising clock edge, we can check for a cache hit.
+                //       be careful though, we have to wait until the comparision is done before continuing (falling edge)
+                //       otherwise we could be writing to the tag_store while we're trying read it (cache store miss)
+                tag_store.write_enable = 1'b0; // read tags
+                tag_store.enable = 1'b1;
+
+                // are we done with the tag comparision?
+                if (tag_store_compare_done) begin
+
+                    // did we get a cache block hit?
+                    if (tag_compare_hit) begin
+                        if (current_request == CPU_REQ_LOAD) begin 
+                            tag_store.enable = 1'b0;        // tags, valid and dirty bits don't need to change
+                            data_store.write_enable = 1'b0; // set to read
+                            data_store.enable = 1'b1;       // data will be available on the next rising clock edge
+                            next_state_d = LOAD_CACHE_HIT;
                         end 
-                        // we can't handle this in this state (clock cycle) because the store 
-                        // data is not yet available from the request port
-                         next_state_d = STORE_CACHE_HIT;
+                        else begin
+                            // since it's a store, we need to check the dirty bit 
+                            // (i.e. are we dirtying a cache block for the first time?)
+                            if (!tag_store.data_i.dirty) begin 
+                                // tag write occurs on next rising clock edge
+                                tag_store.enable = 1'b1;
+                                tag_store.write_enable = 1'b1;
+                                tag_store.bit_enable.dirty = 1'b1;
+                                tag_store.bit_enable.valid = 1'b0;
+                                tag_store.bit_enable.tag = '0;
+                                tag_store.data_o.dirty = 1'b1; 
+                                
+                            end
+                            // otherwise, we're done with the tag store
+                            else begin 
+                                tag_store.enable = 1'b0;
+                            end 
+                            // we can't handle this in this state (clock cycle) because the store 
+                            // data is not yet available from the request port
+                            next_state_d = STORE_CACHE_HIT;
+                        end
                     end
-                end
-                // nope - we have a cache miss
-                else begin 
-                    // we need to check if we have to writeback
-                    if (tag_store.data_i.valid & tag_store.data_i.dirty) begin 
-                        writeback_flag_d = 1'b1;
-                        writeback_flag_en = 1'b1;
-                    end
-                    // missed on a CPU load
-                    if (current_request == CPU_REQ_LOAD) begin
-                        miss_load = 1'b1; 
+                    // nope - we have a cache miss
+                    else begin 
+                        // we need to check if we have to writeback
+                        if (tag_store.data_i.valid & tag_store.data_i.dirty) begin 
+                            writeback_flag_d = 1'b1;
+                            writeback_flag_en = 1'b1;
+                        end
+                        // missed on a CPU load
+                        if (current_request == CPU_REQ_LOAD) begin
+                            miss_load = 1'b1; 
 
-                        // we don't need to use the tag store anymore because we won't writeback 
-                        // until after the request (that we missed on) is served by main memory
-                        tag_store.enable = 1'b0; 
+                            // we don't need to use the tag store anymore because we won't writeback 
+                            // until after the request (that we missed on) is served by main memory
+                            tag_store.enable = 1'b0; 
 
-                        // immediately request a main memory transaction
-                        mem_data_o.rtype = wt_cache_pkg::DCACHE_LOAD_REQ;
-                        mem_data_o.size = dcache_pkg::CACHE_MEM_REQ_SIZE_CACHEBLOCK;
-                        mem_data_o.paddr = req_port_address;
-                        mem_data_req_o = 1'b1;
+                            // immediately request a main memory transaction
+                            mem_data_o.rtype = wt_cache_pkg::DCACHE_LOAD_REQ;
+                            mem_data_o.size = dcache_pkg::CACHE_MEM_REQ_SIZE_CACHEBLOCK;
+                            mem_data_o.paddr = cpu_to_memory_address(
+                                                req_port_address, 
+                                                mem_data_o.size);
+                            mem_data_req_o = 1'b1;
 
-                        // did we get a load acknowledgement? if not, wait for one
-                        next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_READ_DONE : WAIT_MEMORY_READ_ACK;
+                            // did we get a load acknowledgement? if not, wait for one
+                            next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_READ_DONE : WAIT_MEMORY_READ_ACK;
 
+                        end 
+                        // missed on a CPU store
+                        else begin
+                            miss_store = 1'b1; 
+                            // we can't immediately perform a memory request because
+                            // the store data is not yet available from the request port
+                            next_state_d = STORE_CACHE_MISS;
+                        end     
                     end 
-                    // missed on a CPU store
-                    else begin
-                        miss_store = 1'b1; 
-                        // we can't immediately perform a memory request because
-                        // the store data is not yet available from the request port
-                        next_state_d = STORE_CACHE_MISS;
-                    end     
                 end 
             end 
         end 
@@ -693,9 +740,15 @@ module riscmakers_dcache
     assign wbuffer_empty_o = 1'b1;  // write buffer is not implemented, so its always "empty"
     assign wbuffer_not_ni_o = 1'b1; // not sure about what I should set this to, 
                                     // but in 'ariane.sv' there is this: 'assign dcache_commit_wbuffer_not_ni = 1'b1;' for the std_dcache 
+                                    // and in load_unit.sv this needs to == 1 in WAIT_WB_EMPTY state
     assign amo_resp_o = '0;
     assign mem_data_o.amo_op = AMO_NONE; // AMOs are not implemented
     assign mem_data_o.way = '0; // I think this field is only for OpenPiton
+    assign mem_data_o.nc = (~enable_i) | (~ariane_pkg::is_inside_cacheable_regions(ArianeCfg, {{{64-ariane_pkg::DCACHE_TAG_WIDTH-ariane_pkg::DCACHE_INDEX_WIDTH}{1'b0}}, req_port_i_d.address_tag, {ariane_pkg::DCACHE_INDEX_WIDTH{1'b0}}}));
+
+    assign bypass_cache = 1'b1; // force the cache to be bypassed all the time... lets see if we can complete the program
+
+
 
 
 
@@ -719,7 +772,7 @@ module riscmakers_dcache
         // - check that the MMU is disabled/no PTW requests are generated (not implemented)
         // - assure that either a cache store miss or cache load miss is active (mutually exclusive)
         initial begin
-            assert (ariane_pkg::DCACHE_LINE_WIDTH >= riscv::XLEN)
+            assert (dcache_pkg::DCACHE_LINE_WIDTH >= riscv::XLEN)
             else begin $warning("Data cache line width is smaller than the processor word length"); end
         end
 

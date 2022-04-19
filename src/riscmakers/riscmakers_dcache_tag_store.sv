@@ -30,7 +30,7 @@ import dcache_pkg::*;
 
 module dcache_tag_store #(
     parameter int unsigned DATA_WIDTH = dcache_pkg::DCACHE_TAG_STORE_DATA_WIDTH, // tag width plus valid and dirty bit
-    parameter int unsigned NUM_WORDS  = wt_cache_pkg::DCACHE_NUM_WORDS    // number of cache indexes
+    parameter int unsigned NUM_WORDS  = dcache_pkg::DCACHE_NUM_WORDS    // number of cache indexes
 )(
    input  logic                          clk_i,
    input  logic                          en_i,

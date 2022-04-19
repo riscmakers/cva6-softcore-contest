@@ -401,6 +401,15 @@ module riscmakers_dcache
             // end 
 
             WAIT_MEMORY_BYPASS_ACK : begin
+                // keep the request active until it is acknowledged by main memory
+                mem_data_o.rtype = (current_request_port == STORE_UNIT_PORT) ? DCACHE_STORE_REQ : DCACHE_LOAD_REQ;
+                mem_data_o.size = {1'b0, req_port_i_d.data_size};
+                mem_data_o.paddr = cpu_to_memory_address(
+                                    req_port_address, 
+                                    mem_data_o.size);
+                mem_data_o.data = req_port_i_d.data_wdata;
+                mem_data_req_o = 1'b1;
+
                 next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_BYPASS_DONE : WAIT_MEMORY_BYPASS_ACK;
             end 
 

@@ -60,3 +60,4 @@ fpga/results/**/*.wlf
 
 
 xvlog_options
+ver*

@@ -127,12 +127,21 @@ module store_buffer import ariane_pkg::*; (
     assign req_port_o.data_we   = 1'b1; // we will always write in the store queue
     assign req_port_o.tag_valid = 1'b0;
 
-    // those signals can directly be output to the memory
-    assign req_port_o.address_index = commit_queue_q[commit_read_pointer_q].address[ariane_pkg::DCACHE_INDEX_WIDTH-1:0];
-    // if we got a new request we already saved the tag from the previous cycle
-    assign req_port_o.address_tag   = commit_queue_q[commit_read_pointer_q].address[ariane_pkg::DCACHE_TAG_WIDTH     +
-                                                                                    ariane_pkg::DCACHE_INDEX_WIDTH-1 :
-                                                                                    ariane_pkg::DCACHE_INDEX_WIDTH];
+
+    `ifdef RISCMAKERS_DCACHE
+        assign req_port_o.address_index = commit_queue_q[commit_read_pointer_q].address[dcache_pkg::DCACHE_INDEX_WIDTH-1:0];
+        assign req_port_o.address_tag   = commit_queue_q[commit_read_pointer_q].address[dcache_pkg::DCACHE_TAG_WIDTH     +
+                                                                                        dcache_pkg::DCACHE_INDEX_WIDTH-1 :
+                                                                                        dcache_pkg::DCACHE_INDEX_WIDTH];
+    `else
+        // those signals can directly be output to the memory
+        assign req_port_o.address_index = commit_queue_q[commit_read_pointer_q].address[ariane_pkg::DCACHE_INDEX_WIDTH-1:0];
+        // if we got a new request we already saved the tag from the previous cycle
+        assign req_port_o.address_tag   = commit_queue_q[commit_read_pointer_q].address[ariane_pkg::DCACHE_TAG_WIDTH     +
+                                                                                        ariane_pkg::DCACHE_INDEX_WIDTH-1 :
+                                                                                        ariane_pkg::DCACHE_INDEX_WIDTH];
+    `endif                                                                                                                                                                        
+
     assign req_port_o.data_wdata    = commit_queue_q[commit_read_pointer_q].data;
     assign req_port_o.data_be       = commit_queue_q[commit_read_pointer_q].be;
     assign req_port_o.data_size     = commit_queue_q[commit_read_pointer_q].data_size;

@@ -66,17 +66,21 @@ module load_unit import ariane_pkg::*; #(
     assign req_port_o.data_wdata = '0;
     // compose the queue data, control is handled in the FSM
     assign in_data = {lsu_ctrl_i.trans_id, lsu_ctrl_i.vaddr[riscv::XLEN_ALIGN_BYTES-1:0], lsu_ctrl_i.operator};
+
     // output address
     // we can now output the lower 12 bit as the index to the cache
-    assign req_port_o.address_index = lsu_ctrl_i.vaddr[ariane_pkg::DCACHE_INDEX_WIDTH-1:0];
     // translation from last cycle, again: control is handled in the FSM
 
     // riscmakers dcache expects full address as soon as a request is made
+    // index bits and tag widths can be different for riscmakers cache
     `ifdef RISCMAKERS_DCACHE
-        assign req_port_o.address_tag   = lsu_ctrl_i.vaddr[ariane_pkg::DCACHE_TAG_WIDTH     +
-                                                ariane_pkg::DCACHE_INDEX_WIDTH-1 :
-                                                ariane_pkg::DCACHE_INDEX_WIDTH];
+        assign req_port_o.address_tag   = lsu_ctrl_i.vaddr[dcache_pkg::DCACHE_TAG_WIDTH     +
+                                                dcache_pkg::DCACHE_INDEX_WIDTH-1 :
+                                                dcache_pkg::DCACHE_INDEX_WIDTH];
+        assign req_port_o.address_index = lsu_ctrl_i.vaddr[dcache_pkg::DCACHE_INDEX_WIDTH-1:0];
+
     `else
+        assign req_port_o.address_index = lsu_ctrl_i.vaddr[ariane_pkg::DCACHE_INDEX_WIDTH-1:0];
         assign req_port_o.address_tag   = paddr_i[ariane_pkg::DCACHE_TAG_WIDTH     +
                                                 ariane_pkg::DCACHE_INDEX_WIDTH-1 :
                                                 ariane_pkg::DCACHE_INDEX_WIDTH];

@@ -401,20 +401,35 @@ module riscmakers_dcache
             // end 
 
             WAIT_MEMORY_BYPASS_ACK : begin
-                // keep the request active until it is acknowledged by main memory
-                mem_data_o.rtype = (current_request_port == STORE_UNIT_PORT) ? DCACHE_STORE_REQ : DCACHE_LOAD_REQ;
-                mem_data_o.size = {1'b0, req_port_i_d.data_size};
-                mem_data_o.paddr = cpu_to_memory_address(
-                                    req_port_address, 
-                                    mem_data_o.size);
-                mem_data_o.data = req_port_i_d.data_wdata;
-                mem_data_req_o = 1'b1;
+                // if we get a kill request from request port, drop the memory request 
+                // in load_unit.sv, seems like we're expecting a high rvalid signal 
+                // and this is what occurs in wt_dcache_ctrl.sv
+                if (req_port_i_d.kill_req) begin
+                    next_state_d = IDLE;
+                end 
+                else begin
+                    // keep the request active until it is acknowledged by main memory
+                    mem_data_o.rtype = (current_request_port == STORE_UNIT_PORT) ? DCACHE_STORE_REQ : DCACHE_LOAD_REQ;
+                    mem_data_o.size = {1'b0, req_port_i_d.data_size};
+                    mem_data_o.paddr = cpu_to_memory_address(
+                                        req_port_address, 
+                                        mem_data_o.size);
+                    mem_data_o.data = req_port_i_d.data_wdata;
+                    mem_data_req_o = 1'b1;
 
-                next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_BYPASS_DONE : WAIT_MEMORY_BYPASS_ACK;
+                    next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_BYPASS_DONE : WAIT_MEMORY_BYPASS_ACK;
+                end 
             end 
 
             WAIT_MEMORY_BYPASS_DONE : begin
-                if ( mem_rtrn_vld_i && 
+                // don't output data to the request port
+                if (req_port_i_d.kill_req) begin
+                    next_state_d = IDLE;
+
+                    // in store_unit.sv, seems as though only load unit port can issue kill_req
+                    req_ports_o[current_request_port].data_rvalid = 1'b1; 
+                end 
+                else if ( mem_rtrn_vld_i && 
                    ( mem_rtrn_i.rtype == ( (current_request_port == STORE_UNIT_PORT) ? DCACHE_STORE_ACK : DCACHE_LOAD_ACK ) ) ) begin // main memory finished writeback
 
                     // let the CPU know that the data is available from main memory (if it is a load)
@@ -423,7 +438,8 @@ module riscmakers_dcache
                                                                     req_port_block_offset,
                                                                     req_port_i_d.data_size);
                     if (current_request_port == LOAD_UNIT_PORT) begin
-                        req_ports_o[current_request_port].data_rvalid = 1'b1; // stores do not need to be ack'ed
+                        // stores do not need to be ack'ed, but we'll include it now for debugging
+                        req_ports_o[current_request_port].data_rvalid = 1'b1; 
                     end
 
                     next_state_d = IDLE;
@@ -550,6 +566,10 @@ module riscmakers_dcache
 
             // do we have a non cacheable address? 
             if (bypass_cache) begin
+                // not a real "miss" but enabling this for debugging purposes 
+                miss_store = (current_request_port == STORE_UNIT_PORT) ? 1'b1 : 1'b0;
+                miss_load = (current_request_port == LOAD_UNIT_PORT) ? 1'b1 : 1'b0;
+
                 mem_data_o.rtype = (current_request_port == STORE_UNIT_PORT) ? DCACHE_STORE_REQ : DCACHE_LOAD_REQ;
                 mem_data_o.size = {1'b0, req_port_i_d.data_size};
                 mem_data_o.paddr = cpu_to_memory_address(

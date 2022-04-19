@@ -409,9 +409,10 @@ module riscmakers_dcache
                 // if we get a kill request from request port, drop the memory request 
                 // in load_unit.sv, seems like we're expecting a high rvalid signal 
                 // and this is what occurs in wt_dcache_ctrl.sv
-                if (req_port_i_d.kill_req) begin
+                if (req_ports_i[LOAD_UNIT_PORT].kill_req) begin
                     next_state_d = IDLE;
-                    req_ports_o[current_request_port].data_rvalid = 1'b1; 
+                    // in store_unit.sv, seems as though only load unit port can issue kill_req
+                    req_ports_o[LOAD_UNIT_PORT].data_rvalid = 1'b1; 
                 end 
                 else begin
                     // keep the request active until it is acknowledged by main memory
@@ -430,11 +431,10 @@ module riscmakers_dcache
 
             WAIT_MEMORY_BYPASS_DONE : begin
                 // don't output data to the request port
-                if (req_port_i_d.kill_req) begin
+                if (req_ports_i[LOAD_UNIT_PORT].kill_req) begin
                     next_state_d = IDLE;
-
                     // in store_unit.sv, seems as though only load unit port can issue kill_req
-                    req_ports_o[current_request_port].data_rvalid = 1'b1; 
+                    req_ports_o[LOAD_UNIT_PORT].data_rvalid = 1'b1; 
                 end 
                 else if ( mem_rtrn_vld_i && 
                    ( mem_rtrn_i.rtype == ( (current_request_port == STORE_UNIT_PORT) ? DCACHE_STORE_ACK : DCACHE_LOAD_ACK ) ) ) begin // main memory finished writeback

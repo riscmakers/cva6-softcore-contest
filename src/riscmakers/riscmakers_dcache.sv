@@ -67,6 +67,10 @@ module riscmakers_dcache
     logic miss_load;  // we missed on a load request (high for 1 clock cycle)
     logic miss_store; // we missed on a store request (high for 1 clock cycle)
     logic bypass_cache; // debugging flag used to test input/output CPU <--> memory interface
+    
+    // not sure what to put this at, but since the cache is only serving one memory request at a time,
+    // lets set it to an ID that's one more than RdAmoTxId
+    logic [wt_cache_pkg::CACHE_ID_WIDTH-1:0] WrTxId; 
 
     // ----- flags ----
     logic pending_request; // do we have an active request from one of the request ports?
@@ -103,7 +107,8 @@ module riscmakers_dcache
     // ----- miscellaneous ----
     assign miss_o = miss_store | miss_load; // for Ariane performance counters (active for half a clock cycle)
     assign current_request_port = (req_ports_i_d.data_we) ? STORE_UNIT_PORT : LOAD_UNIT_PORT;
-    assign pending_request = req_ports_i[LOAD_UNIT_PORT].data_req | req_ports_i[STORE_UNIT_PORT].data_req
+    assign pending_request = req_ports_i[LOAD_UNIT_PORT].data_req | req_ports_i[STORE_UNIT_PORT].data_req;
+    assign WrTxId = 2;
 
     // Note: req_port_i_d.address_index will always equal the index to the stores.
     //       since we're not writing to any other set in cache, its just the tag that could be different
@@ -122,7 +127,7 @@ module riscmakers_dcache
 
      // since we're only requesting a single memory transfer at a time, we can set this statically to 0
     // assign mem_data_o.tid = wt_cache_pkg::CACHE_ID_WIDTH'b1;
-    assign mem_data_o.tid = 1;
+    //assign mem_data_o.tid = 1;
 
     // tag comparision is done if we have the toggle flip-flop outputs in phase.
     // we need 2 flip flops changing state 90 degrees out of phase for the case where we have 
@@ -406,10 +411,12 @@ module riscmakers_dcache
                 // and this is what occurs in wt_dcache_ctrl.sv
                 if (req_port_i_d.kill_req) begin
                     next_state_d = IDLE;
+                    req_ports_o[current_request_port].data_rvalid = 1'b1; 
                 end 
                 else begin
                     // keep the request active until it is acknowledged by main memory
                     mem_data_o.rtype = (current_request_port == STORE_UNIT_PORT) ? DCACHE_STORE_REQ : DCACHE_LOAD_REQ;
+                    mem_data_o.tid = (current_request_port == LOAD_UNIT_PORT) ? RdAmoTxId : WrTxId; 
                     mem_data_o.size = {1'b0, req_port_i_d.data_size};
                     mem_data_o.paddr = cpu_to_memory_address(
                                         req_port_address, 
@@ -571,6 +578,7 @@ module riscmakers_dcache
                 miss_load = (current_request_port == LOAD_UNIT_PORT) ? 1'b1 : 1'b0;
 
                 mem_data_o.rtype = (current_request_port == STORE_UNIT_PORT) ? DCACHE_STORE_REQ : DCACHE_LOAD_REQ;
+                mem_data_o.tid = (current_request_port == LOAD_UNIT_PORT) ? RdAmoTxId : WrTxId; 
                 mem_data_o.size = {1'b0, req_port_i_d.data_size};
                 mem_data_o.paddr = cpu_to_memory_address(
                                     req_port_address, 

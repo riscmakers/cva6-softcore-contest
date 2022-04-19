@@ -106,7 +106,7 @@ module riscmakers_dcache
 
     // ----- miscellaneous ----
     assign miss_o = miss_store | miss_load; // for Ariane performance counters (active for half a clock cycle)
-    assign current_request_port = (req_ports_i_d.data_we) ? STORE_UNIT_PORT : LOAD_UNIT_PORT;
+    assign current_request_port = (req_port_i_d.data_we) ? STORE_UNIT_PORT : LOAD_UNIT_PORT;
     assign pending_request = req_ports_i[LOAD_UNIT_PORT].data_req | req_ports_i[STORE_UNIT_PORT].data_req;
     assign WrTxId = 2;
 

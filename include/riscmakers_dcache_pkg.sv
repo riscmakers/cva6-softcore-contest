@@ -102,10 +102,6 @@ package dcache_pkg;
     parameter int unsigned TAG_STORE_DIRTY_BIT_POSITION = dcache_pkg::DCACHE_TAG_WIDTH; // MSB-1
     parameter int unsigned TAG_STORE_VALID_BIT_POSITION = TAG_STORE_DIRTY_BIT_POSITION+1; // MSB
 
-
-
-
-
     // *************************************
     // Functions
     // *************************************
@@ -225,15 +221,6 @@ package dcache_pkg;
         byte_enable_cache = ( { {((2**dcache_pkg::DCACHE_OFFSET_WIDTH)-riscv::XLEN/8){1'b0}} , byte_enable_cpu } ) << cache_block_offset;
         
         return byte_enable_cache;
-    endfunction
-
-    // --------------- tag store -----------------
-
-    function automatic tag_store_t tag_store_compare(tag_store_t tag_store_i);
-        automatic tag_store_t tag_store_o = tag_store_i;
-        tag_store_o.write_enable = 1'b0;
-        tag_store_o.enable = 1'b1;
-        return tag_store_o;
     endfunction
 
 endpackage

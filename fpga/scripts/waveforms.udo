@@ -52,9 +52,9 @@ add wave -noupdate -group performance -group totals -label loads -unsigned ${TOP
 add wave -noupdate -group performance -group totals -label stores -unsigned ${TOPLEVEL_PATH}/i_perf_counters/perf_counter_q[2824]
 
 
-run 0.045270 ms
+run 150 ms
 # set breakpoints
-bp riscmakers_dcache.sv ${BREAKPOINT_LINE} echo "BREAKPOINT: Start of DCACHE FSM"
+#bp riscmakers_dcache.sv ${BREAKPOINT_LINE} echo "BREAKPOINT: Start of DCACHE FSM"
 
 #do gui_setup.tcl
 

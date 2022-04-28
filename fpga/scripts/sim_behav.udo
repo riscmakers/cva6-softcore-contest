@@ -5,14 +5,14 @@
 # to the appropiate results/ folder
 ##########################################################################
 
-set SIM_LENGTH 1
+set SIM_LENGTH 200
 set SIM_UNITS "ms"
 set TOPLEVEL_PATH "/tb_cva6_zybo_z7_20/DUT/i_ariane"
 
 do waveforms.udo
 
-# run $SIM_LENGTH$SIM_UNITS
-# run @$SIM_LENGTH$SIM_UNITS
+run $SIM_LENGTH$SIM_UNITS
+run @$SIM_LENGTH$SIM_UNITS
 
 # extra results saved if we're running make cva6_riscmakers
 if {[info exists ::env(PATH_RESULTS_BEHAV)]} {

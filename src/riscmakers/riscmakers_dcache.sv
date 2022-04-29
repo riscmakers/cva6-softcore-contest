@@ -32,12 +32,12 @@ module riscmakers_dcache
     output amo_resp_t amo_resp_o,
     output logic wbuffer_empty_o,   
     output logic wbuffer_not_ni_o,  
+    input dcache_req_i_t [2:0] req_ports_i, // unused because we don't interface to PTW
+    input dcache_rtrn_t mem_rtrn_i,         // unused because we don't use invalidation vector and some other fields
     /* verilator lint_on UNUSED */
     output logic miss_o, // performance counters dont increment in debug mode
-    input dcache_req_i_t [2:0] req_ports_i,
     output dcache_req_o_t [2:0] req_ports_o,
     input logic mem_rtrn_vld_i,
-    input dcache_rtrn_t mem_rtrn_i,
     output logic mem_data_req_o,
     input logic mem_data_ack_i,
     output dcache_req_t mem_data_o

@@ -47,7 +47,9 @@ module dcache_data_store #(
    input  logic                          en_i,
    input  logic [DATA_WIDTH/8-1:0]       write_byte_i, // byte enable
    input  logic                          we_i,
+   /* verilator lint_off UNUSED */
    input  logic                          rst_ni,
+   /* verilator lint_on UNUSED */
    input  logic [$clog2(NUM_WORDS)-1:0]  addr_i,
    input  logic [DATA_WIDTH-1:0]         wdata_i,
    output logic [DATA_WIDTH-1:0]         rdata_o
@@ -64,19 +66,19 @@ module dcache_data_store #(
 
         // reset to 0 
         //pragma translate_off
+        `ifndef VERILATOR
         if (!rst_ni) begin
             automatic logic [DATA_WIDTH-1:0] val;
             for (int unsigned k = 0; k < NUM_WORDS; k++) begin
                 // for debugging purposes
-                `ifndef VERILATOR
                     void'(randomize(val));
-                `endif
 
                 ram[k] = val;
             end
             raddr_q <= '0; 
         end 
         else
+        `endif
         //pragma translate_on
 
         if (en_i) begin

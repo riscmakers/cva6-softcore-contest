@@ -35,7 +35,9 @@ module dcache_tag_store #(
    input  logic                          clk_i,
    input  logic                          en_i,
    input  logic                          we_i,
+   /* verilator lint_off UNUSED */
    input  logic                          rst_ni,
+   /* verilator lint_on UNUSED */
    input  logic [$clog2(NUM_WORDS)-1:0]  addr_i,
    input  tag_store_data_t               wdata_i,
    input  tag_store_bit_enable_t         bit_en_i,
@@ -48,12 +50,6 @@ module dcache_tag_store #(
 
     // read tag store on negative clock edge
     always_ff @(negedge clk_i) begin
-        //pragma translate_off
-        if (!rst_ni) begin
-           raddr_q <= '0; 
-        end
-        else
-        //pragma translate_on 
         if (en_i) begin
             raddr_q <= addr_i;
         end
@@ -64,13 +60,12 @@ module dcache_tag_store #(
 
         // reset to 0 
         //pragma translate_off
+        `ifndef VERILATOR
         if (!rst_ni) begin
             automatic logic [DATA_WIDTH-1:0] val;
             for (int unsigned k = 0; k < NUM_WORDS; k++) begin
                 // for debugging purposes, 
-                `ifndef VERILATOR
                     void'(randomize(val));
-                `endif
                 
                 ram[k] = val;
                 // but the valid bit has to be cleared
@@ -79,6 +74,7 @@ module dcache_tag_store #(
             end
         end 
         else
+        `endif
         //pragma translate_on
 
         if (en_i & we_i)

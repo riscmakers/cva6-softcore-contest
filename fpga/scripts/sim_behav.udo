@@ -5,7 +5,7 @@
 # to the appropiate results/ folder
 ##########################################################################
 
-set SIM_LENGTH 200
+set SIM_LENGTH 185
 set SIM_UNITS "ms"
 set TOPLEVEL_PATH "/tb_cva6_zybo_z7_20/DUT/i_ariane"
 

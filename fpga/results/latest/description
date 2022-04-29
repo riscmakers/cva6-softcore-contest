@@ -1,1 +1,1 @@
-Replaced all source code modules with latest changes in OpenHWGroup CVA6 GitHub repo
+Successively bypass the existing write-through cache, by directly forwarding CPU requests to the main memory request port

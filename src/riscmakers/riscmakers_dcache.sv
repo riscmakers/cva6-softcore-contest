@@ -183,10 +183,10 @@ module riscmakers_dcache
 
                 else if ( mem_rtrn_vld_i && ( mem_rtrn_i.rtype == ( (current_request_port == STORE_UNIT_PORT) ? DCACHE_STORE_ACK : DCACHE_LOAD_ACK ) ) ) begin
                     if (current_request_port == LOAD_UNIT_PORT) begin
-                        req_ports_o[LOAD_UNIT_PORT].data_rdata = cache_block_to_cpu_word(
-                                                                        mem_rtrn_i.data,
-                                                                        req_port_address,
-                                                                        {1'b0, req_port_i_d.data_size});
+                        automatic logic [dcache_pkg::DCACHE_OFFSET_WIDTH-riscv::XLEN_ALIGN_BYTES-1:0] cacheline_nc_offset = req_port_address[2];
+                        automatic logic [dcache_pkg::DCACHE_OFFSET_WIDTH-riscv::XLEN_ALIGN_BYTES-1:0] cacheline_offset = (mem_data_o.nc) ? cacheline_nc_offset : req_port_address[dcache_pkg::DCACHE_OFFSET_WIDTH-1:riscv::XLEN_ALIGN_BYTES];
+                        req_ports_o[LOAD_UNIT_PORT].data_rdata = mem_rtrn_i.data[cacheline_offset*riscv::XLEN +: riscv::XLEN];
+
                         req_ports_o[LOAD_UNIT_PORT].data_rvalid = 1'b1;
                     end
 

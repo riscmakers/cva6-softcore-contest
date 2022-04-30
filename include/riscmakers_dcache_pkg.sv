@@ -16,6 +16,7 @@ package dcache_pkg;
 
     typedef enum {
         IDLE,                       // wait for a CPU memory request
+        GET_WRITEBACK_DATA,         // need a clock cycle to get data from cache data store that we need to writeback
         LOAD_CACHE_HIT,             // need a clock cycle to output data from cache data store and to set rvalid flag
         WAIT_MEMORY_READ_ACK,       // wait for main memory to acknowledge read (load) request
         WAIT_MEMORY_READ_DONE,      // wait for main memory to return with read (load) data

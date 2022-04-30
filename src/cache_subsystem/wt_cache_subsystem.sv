@@ -100,14 +100,14 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
   ) i_riscmakers_dcache (
     .clk_i           ( clk_i                   ),
     .rst_ni          ( rst_ni                  ),
-    .enable_i        ( dcache_enable_i         ), // not used (no bypassing implemented)
-    .flush_i         ( dcache_flush_i          ), // not used
-    .flush_ack_o     ( dcache_flush_ack_o      ), // not used
+    .enable_i        ( dcache_enable_i         ),
+    .flush_i         ( dcache_flush_i          ), 
+    .flush_ack_o     ( dcache_flush_ack_o      ),
     .miss_o          ( dcache_miss_o           ), 
-    .wbuffer_empty_o ( wbuffer_empty_o         ), // not used
-    .wbuffer_not_ni_o ( wbuffer_not_ni_o       ), // not used
-    .amo_req_i       ( dcache_amo_req_i        ), // not used
-    .amo_resp_o      ( dcache_amo_resp_o       ), // not used
+    .wbuffer_empty_o ( wbuffer_empty_o         ),
+    .wbuffer_not_ni_o ( wbuffer_not_ni_o       ),
+    .amo_req_i       ( dcache_amo_req_i        ),
+    .amo_resp_o      ( dcache_amo_resp_o       ),
     .req_ports_i     ( dcache_req_ports_i      ),
     .req_ports_o     ( dcache_req_ports_o      ),
     .mem_rtrn_vld_i  ( adapter_dcache_rtrn_vld ),

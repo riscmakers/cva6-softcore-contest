@@ -121,7 +121,7 @@ module riscmakers_dcache
         // ------ main memory request port ------
         mem_data_req_o = 1'b0;
         mem_data_o.rtype = wt_cache_pkg::DCACHE_LOAD_REQ;
-        mem_data_o.size = dcache_pkg::CACHE_MEM_REQ_SIZE_CACHEBLOCK;
+        mem_data_o.size = dcache_pkg::MEMORY_REQUEST_SIZE_CACHEBLOCK;
         mem_data_o.data = '0;  
         mem_data_o.paddr = '0;   
 
@@ -183,9 +183,11 @@ module riscmakers_dcache
 
                 else if ( mem_rtrn_vld_i && ( mem_rtrn_i.rtype == ( (current_request_port == STORE_UNIT_PORT) ? DCACHE_STORE_ACK : DCACHE_LOAD_ACK ) ) ) begin
                     if (current_request_port == LOAD_UNIT_PORT) begin
-                        automatic logic [dcache_pkg::DCACHE_OFFSET_WIDTH-riscv::XLEN_ALIGN_BYTES-1:0] cacheline_nc_offset = req_port_address[2];
-                        automatic logic [dcache_pkg::DCACHE_OFFSET_WIDTH-riscv::XLEN_ALIGN_BYTES-1:0] cacheline_offset = (mem_data_o.nc) ? cacheline_nc_offset : req_port_address[dcache_pkg::DCACHE_OFFSET_WIDTH-1:riscv::XLEN_ALIGN_BYTES];
-                        req_ports_o[LOAD_UNIT_PORT].data_rdata = mem_rtrn_i.data[cacheline_offset*riscv::XLEN +: riscv::XLEN];
+                        req_ports_o[LOAD_UNIT_PORT].data_rdata = cache_block_to_cpu_word(
+                                                                    mem_rtrn_i.data,
+                                                                    req_port_address,
+                                                                    mem_data_o.nc
+                                                                 );
 
                         req_ports_o[LOAD_UNIT_PORT].data_rvalid = 1'b1;
                     end

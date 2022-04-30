@@ -59,6 +59,13 @@ package dcache_pkg;
         logic [dcache_pkg::DCACHE_LINE_WIDTH/8-1:0] byte_enable; // vector that enables individual write bytes for data store
     } data_store_t;
 
+    // for buffering a writeback request, and thus allowing loads/stores from CPU to overwrite store data before writeback occurs
+    typedef struct packed {
+        logic flag; // do we need to writeback ?
+        riscv::xlen_t data; // we can only writeback word sizes 
+        logic [riscv::PLEN-1:0] address; 
+    } writeback_t;
+
     // *************************************
     // Constants
     // *************************************
@@ -86,12 +93,12 @@ package dcache_pkg;
     // Functions
     // *************************************
 
-    // for converting the CPU physical address to an AXI memory request, depending on transfer size
-    function automatic riscv::xlen_t cpu_to_memory_address(
-        input riscv::xlen_t cpu_address,
+    // for converting the CPU physical address to an AXI memory request address, or a cache block address, depending on transfer size
+    function automatic logic [riscv::PLEN-1:0] cpu_to_memory_address(
+        input logic [riscv::PLEN-1:0] cpu_address,
         input logic [2:0]  data_transfer_size
     );
-        automatic riscv::xlen_t memory_address = cpu_address;
+        automatic logic [riscv::PLEN-1:0] memory_address = cpu_address;
 
         unique case (data_transfer_size)
             MEMORY_REQUEST_SIZE_ONE_BYTE: ; 
@@ -108,7 +115,7 @@ package dcache_pkg;
     // for extracting a CPU word from either the mem_rtrn_i.data field or from the data store
     function automatic riscv::xlen_t cache_block_to_cpu_word (
         input logic [dcache_pkg::DCACHE_LINE_WIDTH-1:0] cache_block,
-        input riscv::xlen_t cpu_address,
+        input logic [riscv::PLEN-1:0] cpu_address,
         input logic is_data_noncacheable
     );
 

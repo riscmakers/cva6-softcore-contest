@@ -1,1 +1,1 @@
-Successively bypass the existing write-through cache, by directly forwarding CPU requests to the main memory request port
+Just got the riscmakers dcache implementation to output correct UART messages after around 67 ms. Going to test the full simulation run.

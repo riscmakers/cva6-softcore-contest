@@ -284,7 +284,6 @@ check-benchmarks:
 benchmark:
 	cd sw/app && make $(APP).mem && make $(APP).coe
 	
-	
 
 fpga_filter := $(addprefix $(root-dir), bootrom/bootrom.sv)
 fpga_filter += $(addprefix $(root-dir), include/instr_tracer_pkg.sv)
@@ -294,6 +293,14 @@ fpga_filter += $(addprefix $(root-dir), src/util/instr_tracer_if.sv)
 fpga_filter += $(addprefix $(root-dir), src/util/instr_tracer.sv)
 fpga_filter += $(addprefix $(root-dir), src/cva6.sv)
 tbs_fpga := $(addprefix $(root-dir), $(tbs))
+
+# otherwise some asserts fail regarding the cache parameters (index width, associativity, etc.)
+ifdef RISCMAKERS_DCACHE
+        fpga_filter += $(addprefix $(root-dir), $(filter-out src/cache_subsystem/wt_axi_adapter.sv \
+                                                             src/cache_subsystem/cva6_icache_axi_wrapper.sv \
+                                                             src/cache_subsystem/wt_cache_subsystem.sv,                     
+                                                $(wildcard src/cache_subsystem/*.sv)))                                     
+endif
 
 fpga/scripts/add_sources.tcl:
 	@echo read_vhdl        {$(uart_src)}    > fpga/scripts/add_sources.tcl

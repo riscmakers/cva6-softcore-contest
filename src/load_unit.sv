@@ -72,15 +72,12 @@ module load_unit import ariane_pkg::*; #(
     // translation from last cycle, again: control is handled in the FSM
 
     // riscmakers dcache expects full address as soon as a request is made
-    // index bits and tag widths can be different for riscmakers cache
-    `ifdef RISCMAKERS_DCACHE
-        assign req_port_o.address_index = lsu_ctrl_i.vaddr[dcache_pkg::DCACHE_INDEX_WIDTH-1:0];
-        assign req_port_o.address_tag   = lsu_ctrl_i.vaddr[dcache_pkg::DCACHE_TAG_WIDTH     +
-                                                dcache_pkg::DCACHE_INDEX_WIDTH-1 :
-                                                dcache_pkg::DCACHE_INDEX_WIDTH];
-
-    `else
         assign req_port_o.address_index = lsu_ctrl_i.vaddr[ariane_pkg::DCACHE_INDEX_WIDTH-1:0];
+    `ifdef RISCMAKERS_DCACHE
+        assign req_port_o.address_tag   = lsu_ctrl_i.vaddr[ariane_pkg::DCACHE_TAG_WIDTH     +
+                                                ariane_pkg::DCACHE_INDEX_WIDTH-1 :
+                                                ariane_pkg::DCACHE_INDEX_WIDTH];
+    `else
         assign req_port_o.address_tag   = paddr_i[ariane_pkg::DCACHE_TAG_WIDTH     +
                                                 ariane_pkg::DCACHE_INDEX_WIDTH-1 :
                                                 ariane_pkg::DCACHE_INDEX_WIDTH];

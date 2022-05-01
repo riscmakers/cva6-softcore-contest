@@ -73,11 +73,11 @@ module riscmakers_dcache
 
     // ------ address -------
     logic [riscv::PLEN-1:0] req_port_address; // the complete physical address used by the output memory request port during load
-    logic [dcache_pkg::DCACHE_CL_IDX_WIDTH-1:0] store_index; // the cache block index bits (indexes into the stores)
+    logic [wt_cache_pkg::DCACHE_CL_IDX_WIDTH-1:0] store_index; // the cache block index bits (indexes into the stores)
     logic [riscv::PLEN-1:0] memory_address; // memory address aligned to the corresponding size request 
-    logic [dcache_pkg::DCACHE_OFFSET_WIDTH-riscv::XLEN_ALIGN_BYTES-1:0] cache_block_offset; // to know where to place the CPU provided word in the data store
+    logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-riscv::XLEN_ALIGN_BYTES-1:0] cache_block_offset; // to know where to place the CPU provided word in the data store
     logic [riscv::XLEN_ALIGN_BYTES-1:0] cpu_offset; // to know where in the CPU word the data is located
-    logic [dcache_pkg::DCACHE_OFFSET_WIDTH-1:0] store_offset; // to know where in the data store to store data (cache_block_offset only accounts for word offsets, this accounts for byte/half word)
+    logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] store_offset; // to know where in the data store to store data (cache_block_offset only accounts for word offsets, this accounts for byte/half word)
 
     // ******************************
     // Continuous assignment signals
@@ -89,10 +89,10 @@ module riscmakers_dcache
     assign pending_request = req_ports_i[LOAD_UNIT_PORT].data_req | req_ports_i[STORE_UNIT_PORT].data_req;
     assign req_port_address = {req_port_i_d.address_tag, req_port_i_d.address_index};
     assign mem_data_o.nc = (~enable_i) | (~ariane_pkg::is_inside_cacheable_regions(ArianeCfg, {{{64-ariane_pkg::DCACHE_TAG_WIDTH-ariane_pkg::DCACHE_INDEX_WIDTH}{1'b0}}, req_port_i_d.address_tag, {ariane_pkg::DCACHE_INDEX_WIDTH{1'b0}}})); 
-    assign store_index = req_port_i_d.address_index[dcache_pkg::DCACHE_INDEX_WIDTH-1:dcache_pkg::DCACHE_OFFSET_WIDTH]; // currently, we only read/write the cache set the CPU requests
+    assign store_index = req_port_i_d.address_index[ariane_pkg::DCACHE_INDEX_WIDTH-1:wt_cache_pkg::DCACHE_OFFSET_WIDTH]; // currently, we only read/write the cache set the CPU requests
     assign tag_compare_hit = ((tag_store.data_i.tag == req_port_i_d.address_tag) && (tag_store.data_i.valid));
     assign memory_address = cpu_to_memory_address(req_port_address, {1'b0, req_port_i_d.data_size});
-    assign cache_block_offset = memory_address[dcache_pkg::DCACHE_OFFSET_WIDTH-1:riscv::XLEN_ALIGN_BYTES];
+    assign cache_block_offset = memory_address[wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:riscv::XLEN_ALIGN_BYTES];
     assign tag_store_compare_done = (tag_store_compare_done_neg_q == tag_store_compare_done_pos_q) ? 1'b1 : 1'b0;
 
     // ****************************
@@ -100,8 +100,8 @@ module riscmakers_dcache
     // ****************************
 
     dcache_data_store #(
-        .DATA_WIDTH(dcache_pkg::DCACHE_LINE_WIDTH),
-        .NUM_WORDS(dcache_pkg::DCACHE_NUM_WORDS)
+        .DATA_WIDTH(ariane_pkg::DCACHE_LINE_WIDTH),
+        .NUM_WORDS(wt_cache_pkg::DCACHE_NUM_WORDS)
     ) i_dcache_data_store (
         .clk_i(clk_i),
         .en_i(data_store.enable),
@@ -115,7 +115,7 @@ module riscmakers_dcache
     
     dcache_tag_store #(
         .DATA_WIDTH(dcache_pkg::DCACHE_TAG_STORE_DATA_WIDTH), 
-        .NUM_WORDS(dcache_pkg::DCACHE_NUM_WORDS)
+        .NUM_WORDS(wt_cache_pkg::DCACHE_NUM_WORDS)
     ) i_dcache_tag_store (
         .clk_i(clk_i),
         .en_i(tag_store.enable),
@@ -158,15 +158,15 @@ module riscmakers_dcache
     always_comb begin: select_offset
         case (req_port_i_d.data_size)
             CPU_REQUEST_SIZE_FOUR_BYTES: begin          
-                store_offset = { {riscv::XLEN_ALIGN_BYTES{1'b0}}, memory_address[dcache_pkg::DCACHE_OFFSET_WIDTH-1:riscv::XLEN_ALIGN_BYTES]};
+                store_offset = { {riscv::XLEN_ALIGN_BYTES{1'b0}}, memory_address[wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:riscv::XLEN_ALIGN_BYTES]};
                 cpu_offset = '0;
             end 
             CPU_REQUEST_SIZE_TWO_BYTES: begin        
-                store_offset = { {(riscv::XLEN_ALIGN_BYTES-1){1'b0}}, memory_address[dcache_pkg::DCACHE_OFFSET_WIDTH-1:riscv::XLEN_ALIGN_BYTES-1]};
+                store_offset = { {(riscv::XLEN_ALIGN_BYTES-1){1'b0}}, memory_address[wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:riscv::XLEN_ALIGN_BYTES-1]};
                 cpu_offset = {1'b0, memory_address[0]};
             end 
             CPU_REQUEST_SIZE_ONE_BYTE: begin          
-                store_offset = memory_address[dcache_pkg::DCACHE_OFFSET_WIDTH-1:riscv::XLEN_ALIGN_BYTES-2];
+                store_offset = memory_address[wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:riscv::XLEN_ALIGN_BYTES-2];
                 cpu_offset = memory_address[1:0];
             end 
             default: begin
@@ -271,7 +271,7 @@ module riscmakers_dcache
 
                                     // figure out where to place the word from the CPU in the data store
                                     data_store.data_o[cache_block_offset*riscv::XLEN +: riscv::XLEN] = req_port_i_d.data_wdata;
-                                    data_store.byte_enable = to_byte_enable16(memory_address[dcache_pkg::DCACHE_OFFSET_WIDTH-1:0], {1'b0, req_port_i_d.data_size});
+                                    data_store.byte_enable = to_byte_enable16(memory_address[wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0], {1'b0, req_port_i_d.data_size});
                                     data_store.write_enable = 1'b1; // write will occur on following rising clock edge
                                     data_store.enable = 1'b1;
 
@@ -601,7 +601,7 @@ module riscmakers_dcache
     `ifndef VERILATOR
 
         initial begin
-            assert (dcache_pkg::DCACHE_LINE_WIDTH >= riscv::XLEN)
+            assert (ariane_pkg::DCACHE_LINE_WIDTH >= riscv::XLEN)
             else begin $warning("Data cache line width is smaller than the processor word length"); end
         end
         assert property (@(posedge clk_i)(req_ports_i[LOAD_UNIT_PORT].data_we == 0))

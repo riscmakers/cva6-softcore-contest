@@ -8,6 +8,7 @@ package dcache_pkg;
     localparam DCACHE_OFFSET_WIDTH     = $clog2(dcache_pkg::DCACHE_LINE_WIDTH/8);
     localparam DCACHE_NUM_WORDS        = 2**(dcache_pkg::DCACHE_INDEX_WIDTH-DCACHE_OFFSET_WIDTH);
     localparam DCACHE_CL_IDX_WIDTH     = $clog2(DCACHE_NUM_WORDS);// excluding byte offset
+    localparam NUMBER_OF_WORDS_IN_CACHE_BLOCK = dcache_pkg::DCACHE_LINE_WIDTH/riscv::XLEN;
     
 
     // *************************************
@@ -16,7 +17,6 @@ package dcache_pkg;
 
     typedef enum {
         IDLE,                       // wait for a CPU memory request
-        GET_WRITEBACK_DATA,         // need a clock cycle to get data from cache data store that we need to writeback
         LOAD_CACHE_HIT,             // need a clock cycle to output data from cache data store and to set rvalid flag
         WAIT_MEMORY_READ_ACK,       // wait for main memory to acknowledge read (load) request
         WAIT_MEMORY_READ_DONE,      // wait for main memory to return with read (load) data
@@ -63,7 +63,7 @@ package dcache_pkg;
     // for buffering a writeback request, and thus allowing loads/stores from CPU to overwrite store data before writeback occurs
     typedef struct packed {
         logic flag; // do we need to writeback ?
-        riscv::xlen_t data; // we can only writeback word sizes 
+        logic [dcache_pkg::DCACHE_LINE_WIDTH-1:0] data; // we can only writeback word sizes, so to transfer an entire cache block we need to loop through this array
         logic [riscv::PLEN-1:0] address; 
     } writeback_t;
 
@@ -79,7 +79,7 @@ package dcache_pkg;
     localparam MEMORY_REQUEST_SIZE_CACHEBLOCK = 3'b111;  // DCACHE_LINE_WIDTH
 
     // meaningful names for req_ports_i.data_size (CPU request)
-    localparam CPU_REQUEST_SIZE_BYTE = 2'b00;           // load/store byte (XLEN/4)
+    localparam CPU_REQUEST_SIZE_ONE_BYTE = 2'b00;           // load/store byte (XLEN/4)
     localparam CPU_REQUEST_SIZE_TWO_BYTES = 2'b01;      // load/store half word (XLEN/2)
     localparam CPU_REQUEST_SIZE_FOUR_BYTES = 2'b10;     // load/store word (XLEN)
     localparam CPU_REQUEST_SIZE_EIGHT_BYTES = 2'b11;    // load/store double word (XLEN*2) ***not supported with xlen == 32***

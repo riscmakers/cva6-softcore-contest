@@ -69,6 +69,7 @@ module riscmakers_dcache
 
     // ----- cache stores -------
     tag_store_t tag_store;
+    tag_store_byte_aligned_t tag_store_byte_aligned;
     data_store_t data_store;
 
     // ------ address -------
@@ -121,10 +122,10 @@ module riscmakers_dcache
         .en_i(tag_store.enable),
         .we_i(tag_store.write_enable),
         .rst_ni(rst_ni),
+        .write_byte_i(tag_store_byte_aligned.byte_enable),      
         .addr_i(store_index),
-        .wdata_i(tag_store.data_o),
-        .bit_en_i(tag_store.bit_enable),      
-        .rdata_o(tag_store.data_i)
+        .wdata_i(tag_store_byte_aligned.data_o),
+        .rdata_o(tag_store_byte_aligned.data_i)
     );
 
     // *******************************
@@ -176,6 +177,26 @@ module riscmakers_dcache
             end 
         endcase 
     end 
+
+    always_comb begin: byte_align_tag_store
+
+        // for debugging purposes
+        tag_store_byte_aligned.data_o = '0;
+
+        tag_store_byte_aligned.data_o.valid[0] = tag_store.data_o.valid; // LSB of the valid byte
+        tag_store_byte_aligned.data_o.dirty[0] = tag_store.data_o.dirty; // LSB of the dirty byte
+        tag_store_byte_aligned.data_o.tag[ariane_pkg::DCACHE_TAG_WIDTH-1:0] = tag_store.data_o.tag; // only the tag bits that matter
+
+        tag_store.data_i.valid = tag_store_byte_aligned.data_i.valid[0]; // LSB of the valid byte
+        tag_store.data_i.dirty = tag_store_byte_aligned.data_i.dirty[0]; // LSB of the dirty byte
+        tag_store.data_i.tag = tag_store_byte_aligned.data_i.tag[ariane_pkg::DCACHE_TAG_WIDTH-1:0]; // only the tag bits that matter
+
+        tag_store_byte_aligned.byte_enable.valid = tag_store.bit_enable.valid;
+        tag_store_byte_aligned.byte_enable.dirty = tag_store.bit_enable.dirty; 
+        tag_store_byte_aligned.byte_enable.tag = {$bits(tag_store_byte_aligned.byte_enable.tag){tag_store.bit_enable.tag}}; // tag bytes are either all enabled, or all disabled
+
+
+    end
 
     // *******************************
     // Cache finite state machine

@@ -29,21 +29,23 @@ import wt_cache_pkg::*;
 import dcache_pkg::*;
 
 module dcache_tag_store #(
-    parameter int unsigned DATA_WIDTH = dcache_pkg::DCACHE_TAG_STORE_DATA_WIDTH, // tag width plus valid and dirty bit
-    parameter int unsigned NUM_WORDS  = wt_cache_pkg::DCACHE_NUM_WORDS    // number of cache indexes
+    parameter int unsigned DATA_WIDTH = dcache_pkg::DCACHE_TAG_STORE_DATA_WIDTH,
+    parameter int unsigned NUM_WORDS  = wt_cache_pkg::DCACHE_NUM_WORDS // number of cache indexes
 )(
    input  logic                          clk_i,
    input  logic                          en_i,
+   input  logic [DATA_WIDTH/8-1:0]       write_byte_i,
    input  logic                          we_i,
    /* verilator lint_off UNUSED */
    input  logic                          rst_ni,
    /* verilator lint_on UNUSED */
    input  logic [$clog2(NUM_WORDS)-1:0]  addr_i,
-   input  tag_store_data_t               wdata_i,
-   input  tag_store_bit_enable_t         bit_en_i,
-   output tag_store_data_t               rdata_o
+   input  logic [DATA_WIDTH-1:0]         wdata_i,
+   output logic [DATA_WIDTH-1:0]         rdata_o
 );
     localparam ADDR_WIDTH = $clog2(NUM_WORDS);
+    localparam NUM_BYTES = DATA_WIDTH/8;
+    localparam BYTE_WIDTH = 8;
 
     logic [DATA_WIDTH-1:0] ram [NUM_WORDS-1:0];
     logic [ADDR_WIDTH-1:0] raddr_q;
@@ -77,9 +79,19 @@ module dcache_tag_store #(
         `endif
         //pragma translate_on
 
-        if (en_i & we_i)
-            for (int unsigned i = 0; i < DATA_WIDTH; i++)
-                if (bit_en_i[i]) ram[addr_i][i] <= wdata_i[i]; // bit enable write
+        if (en_i & we_i) begin 
+            for (int unsigned i = 0; i < NUM_BYTES; i++) begin
+                if (write_byte_i[i]) begin
+                    // pseudo-code that explains the following byte selection using 
+                    // part-select addressing:
+                    //
+                    // (write_byte_i[0]) ? ram[addr_i][7:0] <= wdata_i[7:0];
+                    // (write_byte_i[1]) ? ram[addr_i][15:8] <= wdata_i[15:8];
+                    // etc...
+                    ram[addr_i][i*BYTE_WIDTH +: BYTE_WIDTH] <= wdata_i[i*BYTE_WIDTH +: BYTE_WIDTH];
+                end
+            end
+        end 
     end
 
     assign rdata_o = ram[raddr_q];

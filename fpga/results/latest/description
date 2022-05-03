@@ -1,1 +1,1 @@
-Decrease working riscmakers dcache (with correct number of bram instanciations) to 4 KiB
+Increase riscmakers dcache line width to 256 bits

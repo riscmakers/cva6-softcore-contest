@@ -8,7 +8,6 @@ package dcache_pkg;
 
     typedef enum {
         IDLE,                       // wait for a CPU memory request
-        LOAD_CACHE_HIT,             // need a clock cycle to output data from cache data store and to set rvalid flag
         WAIT_MEMORY_READ_ACK,       // wait for main memory to acknowledge read (load) request
         WAIT_MEMORY_READ_DONE,      // wait for main memory to return with read (load) data
         WAIT_MEMORY_WRITEBACK_ACK,  // wait for main memory to acknowledge writeback (store) request
@@ -190,6 +189,23 @@ package dcache_pkg;
     endfunction : to_byte_enable16
 
 
+    // for writing to data store, either after a full cache block load from main memory or by the CPU for a store hit
+    function automatic logic [(2**wt_cache_pkg::DCACHE_OFFSET_WIDTH)-1:0] cache_block_byte_enable(
+        input logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0] offset,
+        input logic [2:0] size
+    );
+    logic [(2**wt_cache_pkg::DCACHE_OFFSET_WIDTH)-1:0] be;
+    be = '0;
+    unique case(size)
+        MEMORY_REQUEST_SIZE_ONE_BYTE:       be[offset]       = '1; // byte
+        MEMORY_REQUEST_SIZE_TWO_BYTES:      be[offset +:2 ]  = '1; // hword
+        MEMORY_REQUEST_SIZE_FOUR_BYTES:     be[offset +:4 ]  = '1; // word
+        MEMORY_REQUEST_SIZE_EIGHT_BYTES:    be[offset +:8 ]  = '1; // dword
+        MEMORY_REQUEST_SIZE_CACHEBLOCK:     be               = '1; // cache block
+        default:                            be               = '1; // by default, cache block
+    endcase // size
+    return be;
+    endfunction : cache_block_byte_enable
 
 
 endpackage

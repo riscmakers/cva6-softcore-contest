@@ -54,6 +54,7 @@ module riscmakers_dcache
     logic [$clog2(dcache_pkg::NUMBER_OF_WORDS_IN_CACHE_BLOCK):0] writeback_finished_count_d, writeback_finished_count_q; // how many requests have been completed?
     logic [wt_cache_pkg::CACHE_ID_WIDTH-1:0] WrTxId; 
     logic bypass_cache;                             // force cache to be bypassed for debugging purposes
+    logic load_cache_hit_last_cycle_d, load_cache_hit_last_cycle_q; // let's us serve back to back loads without an explicit LOAD_CACHE_HIT state 
 
     // ----- flags ----
     logic pending_request;                      // do we have an active request from one of the request ports?
@@ -211,6 +212,7 @@ module riscmakers_dcache
         update_writeback_buffer = 1'b0;
         writeback_request_count_d = writeback_request_count_q;
         writeback_finished_count_d = writeback_finished_count_q;
+        load_cache_hit_last_cycle_d = 1'b0;
 
         // ------ input/output request ports ------
         req_ports_o[STORE_UNIT_PORT].data_gnt = 1'b0;
@@ -249,6 +251,13 @@ module riscmakers_dcache
         case(current_state_q)
 
             IDLE : begin
+                // we need a clock cycle to output data from the data store. explictly handling this in IDLE lets us serve back to back requests
+                // we need address from previous clock cycle, so use q outputs
+                if (load_cache_hit_last_cycle_q == 1'b1) begin
+                    req_ports_o[LOAD_UNIT_PORT].data_rdata = cache_block_to_cpu_word(data_store.data_i, {req_port_i_q.address_tag, req_port_i_q.address_index}, 1'b0);
+                    req_ports_o[LOAD_UNIT_PORT].data_rvalid = 1'b1; // let the load unit know the data is available
+                end 
+
                 if (pending_request) begin
                     req_ports_o[current_request_port].data_gnt = 1'b1; // grant the request
 
@@ -280,7 +289,8 @@ module riscmakers_dcache
                                 if (current_request_port == LOAD_UNIT_PORT) begin
                                     tag_store.enable = 1'b0;   // tags, valid and dirty bits don't need to change
                                     data_store.enable = 1'b1;  // data will be available on the next rising clock edge
-                                    next_state_d = LOAD_CACHE_HIT;      
+                                    //next_state_d = LOAD_CACHE_HIT;      
+                                    load_cache_hit_last_cycle_d = 1'b1;
                                 end
                                 // ========================
                                 // Store cache hit
@@ -292,7 +302,7 @@ module riscmakers_dcache
 
                                     // figure out where to place the word from the CPU in the data store
                                     data_store.data_o[cache_block_offset*riscv::XLEN +: riscv::XLEN] = req_port_i_d.data_wdata;
-                                    data_store.byte_enable = to_byte_enable16(memory_address[wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0], {1'b0, req_port_i_d.data_size});
+                                    data_store.byte_enable = cache_block_byte_enable(memory_address[wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0], {1'b0, req_port_i_d.data_size});
                                     data_store.write_enable = 1'b1; // write will occur on following rising clock edge
                                     data_store.enable = 1'b1;
 
@@ -323,13 +333,6 @@ module riscmakers_dcache
                         end 
                     end 
                 end
-            end
-
-            LOAD_CACHE_HIT : begin
-                // Note: don't need to pay attention to kill request because data_rvalid flag will go high regardless
-                req_ports_o[LOAD_UNIT_PORT].data_rdata = cache_block_to_cpu_word(data_store.data_i, req_port_address, 1'b0);
-                req_ports_o[LOAD_UNIT_PORT].data_rvalid = 1'b1; // let the load unit know the data is available
-                next_state_d = IDLE;
             end
 
             WAIT_MEMORY_READ_ACK: begin
@@ -569,6 +572,16 @@ module riscmakers_dcache
             writeback_finished_count_q <= writeback_finished_count_d;
         end
     end
+
+   always_ff @(posedge(clk_i)) begin: update_cache_hit_flag
+        if (!rst_ni) begin
+            load_cache_hit_last_cycle_q <= 1'b0;
+        end 
+        else begin
+            load_cache_hit_last_cycle_q <= load_cache_hit_last_cycle_d;
+        end
+    end
+
 
     // Note: the incoming reset loooks to be synchronous with the rising clock edge. By setting the reset
     //       values different (of the two flags) we assure that when the clock is high, the two flags will maintain

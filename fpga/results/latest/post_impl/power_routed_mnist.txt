@@ -1,7 +1,7 @@
 Copyright 1986-2020 Xilinx, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2020.1 (lin64) Build 2902540 Wed May 27 19:54:35 MDT 2020
-| Date             : Tue May  3 08:14:57 2022
+| Date             : Wed May  4 10:43:05 2022
 | Host             : riscmakers.home running 64-bit CentOS Linux release 8.5.2111
 | Command          : report_power -file work-sim/power_routed_mnist.txt -name power_1
 | Design           : cva6_zybo_z7_20
@@ -30,18 +30,18 @@ Table of Contents
 ----------
 
 +--------------------------+----------------------+
-| Total On-Chip Power (W)  | 0.294                |
+| Total On-Chip Power (W)  | 0.297                |
 | Design Power Budget (W)  | Unspecified*         |
 | Power Budget Margin (W)  | NA                   |
-| Dynamic (W)              | 0.182                |
-| Device Static (W)        | 0.112                |
+| Dynamic (W)              | 0.184                |
+| Device Static (W)        | 0.113                |
 | Effective TJA (C/W)      | 11.5                 |
 | Max Ambient (C)          | 81.6                 |
 | Junction Temperature (C) | 28.4                 |
 | Confidence Level         | Medium               |
 | Setting File             | ---                  |
 | Simulation Activity File | work-sim/routed.saif |
-| Design Nets Matched      | 87%   (50872/58508)  |
+| Design Nets Matched      | 87%   (52114/59763)  |
 +--------------------------+----------------------+
 * Specify Design Power Budget using, set_operating_conditions -design_power_budget <value in Watts>
 
@@ -53,21 +53,21 @@ Table of Contents
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
 | Clocks                   |     0.024 |        6 |       --- |             --- |
-| Slice Logic              |     0.012 |    51476 |       --- |             --- |
-|   LUT as Logic           |     0.012 |    22383 |     53200 |           42.07 |
-|   Register               |    <0.001 |    20976 |    106400 |           19.71 |
-|   F7/F8 Muxes            |    <0.001 |      973 |     53200 |            1.83 |
+| Slice Logic              |     0.012 |    52608 |       --- |             --- |
+|   LUT as Logic           |     0.012 |    23210 |     53200 |           43.63 |
+|   Register               |    <0.001 |    21279 |    106400 |           20.00 |
+|   F7/F8 Muxes            |    <0.001 |     1016 |     53200 |            1.91 |
 |   CARRY4                 |    <0.001 |     1188 |     13300 |            8.93 |
 |   LUT as Distributed RAM |    <0.001 |       52 |     17400 |            0.30 |
 |   LUT as Shift Register  |    <0.001 |      121 |     17400 |            0.70 |
-|   Others                 |     0.000 |      655 |       --- |             --- |
-| Signals                  |     0.016 |    39407 |       --- |             --- |
-| Block RAM                |     0.017 |       65 |       140 |           46.43 |
+|   Others                 |     0.000 |      654 |       --- |             --- |
+| Signals                  |     0.016 |    40529 |       --- |             --- |
+| Block RAM                |     0.020 |     71.5 |       140 |           51.07 |
 | MMCM                     |     0.113 |        1 |         4 |           25.00 |
 | DSPs                     |    <0.001 |        4 |       220 |            1.82 |
 | I/O                      |    <0.001 |        9 |       125 |            7.20 |
-| Static Power             |     0.112 |          |           |                 |
-| Total                    |     0.294 |          |           |                 |
+| Static Power             |     0.113 |          |           |                 |
+| Total                    |     0.297 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -77,7 +77,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.078 |       0.069 |      0.009 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.081 |       0.071 |      0.009 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.073 |       0.062 |      0.011 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.001 |       0.000 |      0.001 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -86,7 +86,7 @@ Table of Contents
 | Vcco135   |       1.350 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco12    |       1.200 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vccaux_io |       1.800 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
-| Vccbram   |       1.000 |     0.003 |       0.000 |      0.003 |       NA    | Unspecified | NA         |
+| Vccbram   |       1.000 |     0.004 |       0.001 |      0.003 |       NA    | Unspecified | NA         |
 | MGTAVcc   |       1.000 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | MGTAVtt   |       1.200 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | MGTVccaux |       1.800 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -156,14 +156,14 @@ Table of Contents
 +-----------------------------+-----------+
 | Name                        | Power (W) |
 +-----------------------------+-----------+
-| cva6_zybo_z7_20             |     0.182 |
-|   i_ariane                  |     0.053 |
+| cva6_zybo_z7_20             |     0.184 |
+|   i_ariane                  |     0.057 |
 |     csr_regfile_i           |     0.001 |
 |     ex_stage_i              |     0.004 |
-|       lsu_i                 |     0.003 |
-|     i_cache_subsystem       |     0.020 |
-|       i_cva6_icache         |     0.014 |
-|       i_riscmakers_dcache   |     0.005 |
+|       lsu_i                 |     0.004 |
+|     i_cache_subsystem       |     0.023 |
+|       i_cva6_icache         |     0.013 |
+|       i_riscmakers_dcache   |     0.009 |
 |     i_frontend              |     0.008 |
 |       i_btb                 |     0.002 |
 |       i_instr_queue         |     0.003 |
@@ -171,10 +171,10 @@ Table of Contents
 |     id_stage_i              |     0.002 |
 |     issue_stage_i           |     0.018 |
 |       i_issue_read_operands |     0.008 |
-|       i_scoreboard          |     0.010 |
+|       i_scoreboard          |     0.009 |
 |   i_ariane_peripherals      |     0.003 |
 |     gen_uart.i_apb_uart     |     0.002 |
-|   i_axi_xbar                |     0.008 |
+|   i_axi_xbar                |     0.007 |
 |   i_xlnx_clk_gen            |     0.113 |
 |     inst                    |     0.113 |
 +-----------------------------+-----------+

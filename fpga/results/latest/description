@@ -1,1 +1,1 @@
-In an effort for Xilinx to synthesize the correct number of BRAMs for the tag store, replace the bit enable signals with byte enable by performing explicit alignment
+Decrease working riscmakers dcache (with correct number of bram instanciations) to 4 KiB

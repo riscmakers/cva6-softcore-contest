@@ -436,7 +436,7 @@ package ariane_pkg;
 
     `ifdef RISCMAKERS_DCACHE
         // D$
-        localparam int unsigned CONFIG_L1D_SIZE    = 32*1024;
+        localparam int unsigned CONFIG_L1D_SIZE    = 4*1024;
         localparam int unsigned DCACHE_SET_ASSOC   = 4; // Not used in direct mapped cache, but need this constant for wt_cache_pkg definitions
         localparam int unsigned DCACHE_INDEX_WIDTH = $clog2(CONFIG_L1D_SIZE);  // in bit, contains also offset width
         localparam int unsigned DCACHE_TAG_WIDTH   = riscv::PLEN-DCACHE_INDEX_WIDTH;  // in bit

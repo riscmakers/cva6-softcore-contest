@@ -1,1 +1,1 @@
-Increase riscmakers dcache line width to 256 bits
+Increase the cache block width to 512 bits, doubling it from last sim

@@ -1,4 +1,4 @@
-Number of Loads: 541390
+Number of Loads: 541381
 Number of Stores: 32243
-Number of Instruction Cache Misses: 836
-Number of Data Cache Misses: 1304
+Number of Instruction Cache Misses: 834
+Number of Data Cache Misses: 2513

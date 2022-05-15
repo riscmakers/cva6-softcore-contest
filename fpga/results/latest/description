@@ -1,1 +1,1 @@
-Increase the cache block width to 512 bits, doubling it from last sim
+Get full sim results for 256 32 KiB data cache

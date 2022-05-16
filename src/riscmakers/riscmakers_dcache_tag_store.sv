@@ -2,9 +2,6 @@
 // *****************************************************************
 // Data cache tag store (SRAM)
 // Inferring Xilinx block ram IP
-// Sensitive to both clock edges:
-//  - tag read occuring on falling edge of system clock
-//  - tag write occuring on rising edge (if there is a cache hit)
 // *****************************************************************
 //
 // Copyright 2017, 2018 ETH Zurich and University of Bologna.
@@ -50,8 +47,8 @@ module dcache_tag_store #(
     logic [DATA_WIDTH-1:0] ram [NUM_WORDS-1:0];
     logic [ADDR_WIDTH-1:0] raddr_q;
 
-    // read tag store on negative clock edge
-    always_ff @(negedge clk_i) begin
+    // read tag store on positive clock edge
+    always_ff @(posedge clk_i) begin
         if (en_i) begin
             raddr_q <= addr_i;
         end

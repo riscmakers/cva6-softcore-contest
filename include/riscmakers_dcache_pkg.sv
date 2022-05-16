@@ -8,6 +8,7 @@ package dcache_pkg;
 
     typedef enum {
         IDLE,                       // wait for a CPU memory request
+        TAG_COMPARE,
         WAIT_MEMORY_READ_ACK,       // wait for main memory to acknowledge read (load) request
         WAIT_MEMORY_READ_DONE,      // wait for main memory to return with read (load) data
         WAIT_MEMORY_WRITEBACK_ACK,  // wait for main memory to acknowledge writeback (store) request

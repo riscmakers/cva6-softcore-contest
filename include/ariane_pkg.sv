@@ -140,7 +140,7 @@ package ariane_pkg;
     localparam ISSUE_WIDTH = 1;
     // amount of pipeline registers inserted for load/store return path
     // this can be tuned to trade-off IPC vs. cycle time
-    localparam int unsigned NR_LOAD_PIPE_REGS = 1;
+    localparam int unsigned NR_LOAD_PIPE_REGS = 0;
     localparam int unsigned NR_STORE_PIPE_REGS = 0;
 
     // depth of store-buffers, this needs to be a power of two

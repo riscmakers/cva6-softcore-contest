@@ -1,1 +1,1 @@
-Change riscmakers data cache to have an explicit state for the tag comparision. In other words, remove the DDR tag store and replace it with a single clock, single read/write. Perform full sim.
+Remove load pipeline register for reducing # of clock cycles

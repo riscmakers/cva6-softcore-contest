@@ -1,1 +1,1 @@
-Remove load pipeline register for reducing # of clock cycles
+Decrease # of scoreboard entries to 4

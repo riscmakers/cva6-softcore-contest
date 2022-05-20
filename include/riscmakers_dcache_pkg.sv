@@ -40,10 +40,11 @@ package dcache_pkg;
 
     typedef struct packed {
         logic enable; // is the tag store enabled? 
-        logic write_enable; // are we reading from or writing to tag store?
+        logic write_enable;
         tag_store_data_t data_i; // contains all tag data read from tag store
         tag_store_data_t data_o; // contains all tag data written to tag store
         tag_store_bit_enable_t bit_enable; // vector that indicates which fields of the tag store will be write enabled
+        logic [wt_cache_pkg::DCACHE_CL_IDX_WIDTH-1:0] address;
     } tag_store_t;
 
 
@@ -81,10 +82,11 @@ package dcache_pkg;
 
     typedef struct packed {
         logic enable; // is the data store enabled?
-        logic write_enable; // are we reading from or writing to data store?
+        logic write_enable;
         logic [ariane_pkg::DCACHE_LINE_WIDTH-1:0] data_i; // contains all data read from data store
         logic [ariane_pkg::DCACHE_LINE_WIDTH-1:0] data_o; // contains all data written to data store
         logic [ariane_pkg::DCACHE_LINE_WIDTH/8-1:0] byte_enable; // vector that enables individual write bytes for data store
+        logic [wt_cache_pkg::DCACHE_CL_IDX_WIDTH-1:0] address;
     } data_store_t;
 
     // for buffering a writeback request, and thus allowing loads/stores from CPU to overwrite store data before writeback occurs
@@ -158,7 +160,7 @@ package dcache_pkg;
         input logic is_data_noncacheable
     );
 
-        // RHS generates only 1 bit, whereas we are expecting 2 bits on LHS. I think we should make LHS 1 bit, but double check that the function works first
+        // TODO: RHS generates only 1 bit, whereas we are expecting 2 bits on LHS. I think we should make LHS 1 bit, but double check that the function works first
         automatic logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-riscv::XLEN_ALIGN_BYTES-1:0] cache_block_noncacheable_offset = cpu_address[2];
 
         automatic logic [wt_cache_pkg::DCACHE_OFFSET_WIDTH-riscv::XLEN_ALIGN_BYTES-1:0] cache_block_offset = 
@@ -169,26 +171,6 @@ package dcache_pkg;
 
         return cpu_word;
     endfunction
-
-
-    // for writing to data store, either after a full cache block load from main memory or by the CPU for a store hit
-    function automatic logic [15:0] to_byte_enable16(
-        input logic [3:0] offset,
-        input logic [2:0] size
-    );
-    logic [15:0] be;
-    be = '0;
-    unique case(size)
-        3'b000:   be[offset]       = '1; // byte
-        3'b001:   be[offset +:2 ]  = '1; // hword
-        3'b010:   be[offset +:4 ]  = '1; // word
-        3'b011:   be[offset +:8 ]  = '1; // dword
-        3'b111:   be               = '1; // cache block
-        default: be                = '1; // by default, cache block
-    endcase // size
-    return be;
-    endfunction : to_byte_enable16
-
 
     // for writing to data store, either after a full cache block load from main memory or by the CPU for a store hit
     function automatic logic [(2**wt_cache_pkg::DCACHE_OFFSET_WIDTH)-1:0] cache_block_byte_enable(

@@ -10,7 +10,7 @@
 #       relative path is ../../../../../ 
 ##########################################################################
 
-set SIM_LENGTH 67
+set SIM_LENGTH 60
 set SIM_UNITS "ms"
 
 power add -in -inout -internal -out -r /tb_cva6_zybo_z7_20/DUT/*

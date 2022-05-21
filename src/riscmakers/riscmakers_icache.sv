@@ -173,51 +173,22 @@ module riscmakers_icache
         case(current_state_q)
 
             IDLE : begin
-                dreq_o.ready = 1'b1;
-                if (dreq_i.req) begin
-                    // are we requesting access to I/O space or are we forcing the cache to be bypassed?
-                    if (mem_data_o.nc | bypass_cache) begin
-                        // yes, so we don't need to compare tags since the cache will be bypassed
-                        // is the request speculative? 
-                        if (dreq_i.spec) begin
-                            next_state_d = WAIT_NON_SPECULATIVE_FLAG;
-                        end 
-                        // no, so we can immediately request memory transfer
-                        else begin
-                            mem_data_req_o      = 1'b1;
-                            next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_READ_DONE : WAIT_MEMORY_READ_ACK;
-                        end 
-                    end 
-                    // no, it's a cacheable request so we will compare tags and check for a cache hit 
-                    else begin     
-                        // tag comparision result will be ready in next clock cycle
-                        // speculatively read from data store, assuming we will get a tag hit
-                        tag_store.enable = 1'b1;
-                        data_store.enable = 1'b1;
-                        next_state_d = TAG_COMPARE;                   
-                    end 
-                end   
-                // I think a kill signal can be issued at the same time as the request
-                if (dreq_i.kill_s1) begin
-                    next_state_d = IDLE;
-                end   
+                serve_new_request();
             end
 
             WAIT_NON_SPECULATIVE_FLAG: begin
                 if (dreq_i.kill_s2) begin
-                    // TODO: we can serve another request here !!
-                    next_state_d = IDLE;
+                    serve_new_request();
                 end             
                 else if (!dreq_i.spec || !addr_ni) begin
-                    mem_data_req_o      = 1'b1;
+                    mem_data_req_o = 1'b1;
                     next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_READ_DONE : WAIT_MEMORY_READ_ACK;             
                 end 
             end 
 
             TAG_COMPARE: begin
                 if (dreq_i.kill_s2) begin
-                    // TODO: we can serve another request here !!
-                    next_state_d = IDLE;
+                    serve_new_request();
                 end 
                 // (!dreq_i.spec || !addr_ni) I'm adding because its in cva6_icache.sv, not sure why we really need this
                 // I think we need to wait for the request to no longer be speculative?
@@ -230,51 +201,48 @@ module riscmakers_icache
                         dreq_o.data = icache_block_to_cpu_word(data_store.data_i, req_address_q, 1'b0);
                         dreq_o.valid = 1'b1; // let the load unit know the data is available
 
-                        // TODO: we can serve another request here !!
-                        next_state_d = IDLE;
+                        serve_new_request();
                     end 
                     // ========================
                     // Cache miss
                     // ========================
                     else begin
                         miss_o = 1'b1;   
-                        mem_data_req_o      = 1'b1;
+                        mem_data_req_o = 1'b1;
                         next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_READ_DONE : WAIT_MEMORY_READ_ACK; 
                     end 
                 end 
             end 
 
             WAIT_MEMORY_READ_ACK: begin
-                // TODO: optimization. If we have a kill request here, we don't have to wait for the memory to return, we can just go to IDLE
-                //       note, to do this though, we need a way to uniquely identify each memory transaction. Otherwise, if we don't check, its
-                //       possible that on the next cache miss, we will think that the correct data is returned, but its actually from the previous 
-                //       request that was killed. We could keep track of this using the TID (cache ID transfers). When the TID is at its max, then
-                //       we stall to wait for the last requests to clear before trying more
-                mem_data_req_o      = 1'b1;
+                mem_data_req_o = 1'b1;
                 next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_READ_DONE : WAIT_MEMORY_READ_ACK;         
             end 
 
              WAIT_MEMORY_READ_DONE : begin
                 if (dreq_i.kill_s2) begin
-                    // TODO: we can serve another request here !!
+                    // if there is a kill request at the exact moment the memory transfer completes,
+                    // we need to return to IDLE (or serve a new request) otherwise we will be locked in the WAIT_KILL_REQUEST state
+                    if ( mem_rtrn_vld_i && (mem_rtrn_i.rtype == ICACHE_IFILL_ACK) ) begin
+                        serve_new_request();
+                    end 
                     // we need to go to KILL_REQUEST state, so that once the memory load finishes
                     // we don't use the output and instead we ignore it
-
-                    // if there is a kill request at the exact moment the memory transfer completes,
-                    // we need to return to IDLE otherwise we will be locked in the WAIT_KILL_REQUEST state
-                    if ( mem_rtrn_vld_i && (mem_rtrn_i.rtype == ICACHE_IFILL_ACK) ) begin
-                        next_state_d = IDLE;
-                    end 
                     else begin
                         next_state_d = WAIT_KILL_REQUEST;
                     end 
                 end 
                 // are we done fetching the cache block we missed on?
                 else if ( mem_rtrn_vld_i && (mem_rtrn_i.rtype == ICACHE_IFILL_ACK) ) begin
+                    // ==========================================
+                    // Output word to CPU
+                    // ==========================================
+                    dreq_o.data = icache_block_to_cpu_word(mem_rtrn_i.data, req_address_q, mem_data_o.nc);
+                    dreq_o.valid = 1'b1;     
                     // ======================================================================
                     // Allocate fetched cache block to store if cacheable
                     // ======================================================================
-                    if (!mem_data_o.nc) begin
+                    if (!mem_data_o.nc & !bypass_cache) begin
                         data_store.enable = 1'b1;
                         data_store.write_enable = 1'b1;
                         data_store.byte_enable = '1;
@@ -283,20 +251,25 @@ module riscmakers_icache
                         tag_store.write_enable = 1'b1;
                         tag_store.data_o.valid = 1'b1;
                         tag_store.bit_enable = '1;
-                    end 
-                    // ==========================================
-                    // Output word to CPU
-                    // ==========================================
-                    dreq_o.data = icache_block_to_cpu_word(mem_rtrn_i.data, req_address_q, mem_data_o.nc);
-                    dreq_o.valid = 1'b1;     
 
-                    next_state_d = IDLE;
+                        next_state_d = IDLE;
+                    end 
+                    // we can serve a new request immediately because we won't be writing to the tag or data store if it was a non-cacheable request
+                    else begin
+                        serve_new_request();
+                    end 
                 end 
             end 
 
+            // TODO: optimization. If we have a kill request, we don't have to wait for the memory to return (and waste clock cycles doing nothing).
+            //       we can just go to IDLE and serve a new request.
+            //       To do this though, we need a way to uniquely identify each memory transaction. Otherwise, if we don't check, its
+            //       possible that on the next cache miss, we will think that the correct data is returned, but its actually from the previous 
+            //       request that was killed. We could keep track of this using the TID (cache ID transfers). When the TID is at its max, then
+            //       we stall to wait for the last requests to clear before trying more
             WAIT_KILL_REQUEST : begin
                 if (mem_rtrn_vld_i && mem_rtrn_i.rtype == ICACHE_IFILL_ACK) begin
-                    next_state_d = IDLE;
+                    serve_new_request();
                 end
             end 
 
@@ -324,6 +297,43 @@ module riscmakers_icache
             req_address_q <= req_address_d;
         end
     end
+
+    // *************************************
+    // Reused request code
+    // *************************************
+
+    function void serve_new_request();
+        next_state_d = IDLE; // this gets overwritten below
+        dreq_o.ready = 1'b1;
+        if (dreq_i.req) begin
+            // are we requesting access to I/O space or are we forcing the cache to be bypassed?
+            if (mem_data_o.nc | bypass_cache) begin
+                // yes, so we don't need to compare tags since the cache will be bypassed
+                // is the request speculative? 
+                if (dreq_i.spec) begin
+                    next_state_d = WAIT_NON_SPECULATIVE_FLAG;
+                end 
+                // no, so we can immediately request memory transfer
+                else begin
+                    mem_data_req_o = 1'b1;
+                    next_state_d = (mem_data_ack_i) ? WAIT_MEMORY_READ_DONE : WAIT_MEMORY_READ_ACK;
+                end 
+            end 
+            // no, it's a cacheable request so we will compare tags and check for a cache hit 
+            else begin     
+                // tag comparision result will be ready in next clock cycle
+                // speculatively read from data store, assuming we will get a tag hit
+                tag_store.enable = 1'b1;
+                data_store.enable = 1'b1;
+                next_state_d = TAG_COMPARE;                   
+            end 
+        end   
+        // I think a kill signal can be issued at the same time as the request, so this will always 
+        // be the final assignment to the next_state_d signal
+        if (dreq_i.kill_s1) begin
+            next_state_d = IDLE;
+        end   
+    endfunction
 
     // *****************************************
     // Unused module ports (not implemented)

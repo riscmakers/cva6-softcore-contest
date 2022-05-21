@@ -72,7 +72,7 @@ module riscmakers_icache
     // Continuous assignment signals
     // ******************************
 
-    assign bypass_cache = 1'b1;
+    assign bypass_cache = 1'b0;
     assign mem_data_o.tid = RdTxId;
     assign data_store.address = req_address_d[ariane_pkg::ICACHE_INDEX_WIDTH-1:wt_cache_pkg::ICACHE_OFFSET_WIDTH]; // d output because we look at the incoming request
     assign tag_store.address = req_address_d[ariane_pkg::ICACHE_INDEX_WIDTH-1:wt_cache_pkg::ICACHE_OFFSET_WIDTH]; 
@@ -259,7 +259,15 @@ module riscmakers_icache
                     // TODO: we can serve another request here !!
                     // we need to go to KILL_REQUEST state, so that once the memory load finishes
                     // we don't use the output and instead we ignore it
-                    next_state_d = WAIT_KILL_REQUEST;
+
+                    // if there is a kill request at the exact moment the memory transfer completes,
+                    // we need to return to IDLE otherwise we will be locked in the WAIT_KILL_REQUEST state
+                    if ( mem_rtrn_vld_i && (mem_rtrn_i.rtype == ICACHE_IFILL_ACK) ) begin
+                        next_state_d = IDLE;
+                    end 
+                    else begin
+                        next_state_d = WAIT_KILL_REQUEST;
+                    end 
                 end 
                 // are we done fetching the cache block we missed on?
                 else if ( mem_rtrn_vld_i && (mem_rtrn_i.rtype == ICACHE_IFILL_ACK) ) begin

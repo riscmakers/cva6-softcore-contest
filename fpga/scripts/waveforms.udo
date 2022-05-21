@@ -20,26 +20,29 @@ if ![batch_mode] {
 add wave -noupdate ${TOPLEVEL_PATH}/clk_i
 add wave -noupdate ${TOPLEVEL_PATH}/issue_stage_i/i_issue_read_operands/stall
 
+# riscmakers icache
+add wave -noupdate -group icache ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_icache/*
 
+# riscmakers dcache
 add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/clk_i
 add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/rst_ni
 add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/miss_o
 
-# request ports
 add wave -noupdate -group dcache -label load_req_in ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/req_ports_i[1]
 add wave -noupdate -group dcache -label store_req_in ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/req_ports_i[2]
 add wave -noupdate -group dcache -label load_req_out ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/req_ports_o[1]
 add wave -noupdate -group dcache -label store_req_out ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/req_ports_o[2]
 
-# memory
 add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/mem_data_req_o
 add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/mem_data_ack_i
 add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/mem_data_o
 add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/mem_rtrn_vld_i
 add wave -noupdate -group dcache ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/mem_rtrn_i
 
-# all internal signals
 add wave -noupdate -group dcache -internal ${TOPLEVEL_PATH}/i_cache_subsystem/i_riscmakers_dcache/*
+
+# wt_icache
+add wave -noupdate -group icache ${TOPLEVEL_PATH}/i_cache_subsystem/i_cva6_icache/*
 
 # performance counters
 add wave -noupdate -group performance ${TOPLEVEL_PATH}/i_perf_counters/l1_icache_miss_i 

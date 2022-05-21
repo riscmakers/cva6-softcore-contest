@@ -70,83 +70,106 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
   wt_cache_pkg::dcache_req_t  dcache_adapter;
   wt_cache_pkg::dcache_rtrn_t adapter_dcache;
 
-  cva6_icache #(
-    // use ID 0 for icache reads
-    .RdTxId             ( 0             ),
-    .ArianeCfg          ( ArianeCfg     )
-  ) i_cva6_icache (
-    .clk_i              ( clk_i                   ),
-    .rst_ni             ( rst_ni                  ),
-    .flush_i            ( icache_flush_i          ),
-    .en_i               ( icache_en_i             ),
-    .miss_o             ( icache_miss_o           ),
-    .areq_i             ( icache_areq_i           ),
-    .areq_o             ( icache_areq_o           ),
-    .dreq_i             ( icache_dreq_i           ),
-    .dreq_o             ( icache_dreq_o           ),
-    .mem_rtrn_vld_i     ( adapter_icache_rtrn_vld ),
-    .mem_rtrn_i         ( adapter_icache          ),
-    .mem_data_req_o     ( icache_adapter_data_req ),
-    .mem_data_ack_i     ( adapter_icache_data_ack ),
-    .mem_data_o         ( icache_adapter          )
-  );
+  `ifdef RISCMAKERS_ICACHE
+      riscmakers_icache #(
+        .RdTxId             ( 0             ),
+        .ArianeCfg          ( ArianeCfg     )
+      ) i_riscmakers_icache (
+        .clk_i              ( clk_i                   ),
+        .rst_ni             ( rst_ni                  ),
+        .flush_i            ( icache_flush_i          ),
+        .en_i               ( icache_en_i             ),
+        .miss_o             ( icache_miss_o           ),
+        .areq_i             ( icache_areq_i           ),
+        .areq_o             ( icache_areq_o           ),
+        .dreq_i             ( icache_dreq_i           ),
+        .dreq_o             ( icache_dreq_o           ),
+        .mem_rtrn_vld_i     ( adapter_icache_rtrn_vld ),
+        .mem_rtrn_i         ( adapter_icache          ),
+        .mem_data_req_o     ( icache_adapter_data_req ),
+        .mem_data_ack_i     ( adapter_icache_data_ack ),
+        .mem_data_o         ( icache_adapter          )
+      );
 
+  `else
+      cva6_icache #(
+        // use ID 0 for icache reads
+        .RdTxId             ( 0             ),
+        .ArianeCfg          ( ArianeCfg     )
+      ) i_cva6_icache (
+        .clk_i              ( clk_i                   ),
+        .rst_ni             ( rst_ni                  ),
+        .flush_i            ( icache_flush_i          ),
+        .en_i               ( icache_en_i             ),
+        .miss_o             ( icache_miss_o           ),
+        .areq_i             ( icache_areq_i           ),
+        .areq_o             ( icache_areq_o           ),
+        .dreq_i             ( icache_dreq_i           ),
+        .dreq_o             ( icache_dreq_o           ),
+        .mem_rtrn_vld_i     ( adapter_icache_rtrn_vld ),
+        .mem_rtrn_i         ( adapter_icache          ),
+        .mem_data_req_o     ( icache_adapter_data_req ),
+        .mem_data_ack_i     ( adapter_icache_data_ack ),
+        .mem_data_o         ( icache_adapter          )
+      );
+
+  `endif
 
   `ifdef RISCMAKERS_DCACHE
 
-  riscmakers_dcache #(
-    .RdAmoTxId       ( 1             ),
-    .ArianeCfg       ( ArianeCfg     )
-  ) i_riscmakers_dcache (
-    .clk_i           ( clk_i                   ),
-    .rst_ni          ( rst_ni                  ),
-    .enable_i        ( dcache_enable_i         ),
-    .flush_i         ( dcache_flush_i          ), 
-    .flush_ack_o     ( dcache_flush_ack_o      ),
-    .miss_o          ( dcache_miss_o           ), 
-    .wbuffer_empty_o ( wbuffer_empty_o         ),
-    .wbuffer_not_ni_o ( wbuffer_not_ni_o       ),
-    .amo_req_i       ( dcache_amo_req_i        ),
-    .amo_resp_o      ( dcache_amo_resp_o       ),
-    .req_ports_i     ( dcache_req_ports_i      ),
-    .req_ports_o     ( dcache_req_ports_o      ),
-    .mem_rtrn_vld_i  ( adapter_dcache_rtrn_vld ),
-    .mem_rtrn_i      ( adapter_dcache          ),
-    .mem_data_req_o  ( dcache_adapter_data_req ),
-    .mem_data_ack_i  ( adapter_dcache_data_ack ),
-    .mem_data_o      ( dcache_adapter          )
-  );
+      riscmakers_dcache #(
+        .RdAmoTxId       ( 1             ),
+        .ArianeCfg       ( ArianeCfg     )
+      ) i_riscmakers_dcache (
+        .clk_i           ( clk_i                   ),
+        .rst_ni          ( rst_ni                  ),
+        .enable_i        ( dcache_enable_i         ),
+        .flush_i         ( dcache_flush_i          ), 
+        .flush_ack_o     ( dcache_flush_ack_o      ),
+        .miss_o          ( dcache_miss_o           ), 
+        .wbuffer_empty_o ( wbuffer_empty_o         ),
+        .wbuffer_not_ni_o ( wbuffer_not_ni_o       ),
+        .amo_req_i       ( dcache_amo_req_i        ),
+        .amo_resp_o      ( dcache_amo_resp_o       ),
+        .req_ports_i     ( dcache_req_ports_i      ),
+        .req_ports_o     ( dcache_req_ports_o      ),
+        .mem_rtrn_vld_i  ( adapter_dcache_rtrn_vld ),
+        .mem_rtrn_i      ( adapter_dcache          ),
+        .mem_data_req_o  ( dcache_adapter_data_req ),
+        .mem_data_ack_i  ( adapter_dcache_data_ack ),
+        .mem_data_o      ( dcache_adapter          )
+      );
 
   `else
 
-  // Note:
-  // Ports 0/1 for PTW and LD unit are read only.
-  // they have equal prio and are RR arbited
-  // Port 2 is write only and goes into the merging write buffer
-  wt_dcache #(
-    // use ID 1 for dcache reads and amos. note that the writebuffer
-    // uses all IDs up to DCACHE_MAX_TX-1 for write transactions.
-    .RdAmoTxId       ( 1             ),
-    .ArianeCfg       ( ArianeCfg     )
-  ) i_wt_dcache (
-    .clk_i           ( clk_i                   ),
-    .rst_ni          ( rst_ni                  ),
-    .enable_i        ( dcache_enable_i         ),
-    .flush_i         ( dcache_flush_i          ),
-    .flush_ack_o     ( dcache_flush_ack_o      ),
-    .miss_o          ( dcache_miss_o           ),
-    .wbuffer_empty_o ( wbuffer_empty_o         ),
-    .wbuffer_not_ni_o ( wbuffer_not_ni_o       ),
-    .amo_req_i       ( dcache_amo_req_i        ),
-    .amo_resp_o      ( dcache_amo_resp_o       ),
-    .req_ports_i     ( dcache_req_ports_i      ),
-    .req_ports_o     ( dcache_req_ports_o      ),
-    .mem_rtrn_vld_i  ( adapter_dcache_rtrn_vld ),
-    .mem_rtrn_i      ( adapter_dcache          ),
-    .mem_data_req_o  ( dcache_adapter_data_req ),
-    .mem_data_ack_i  ( adapter_dcache_data_ack ),
-    .mem_data_o      ( dcache_adapter          )
-  );
+      // Note:
+      // Ports 0/1 for PTW and LD unit are read only.
+      // they have equal prio and are RR arbited
+      // Port 2 is write only and goes into the merging write buffer
+      wt_dcache #(
+        // use ID 1 for dcache reads and amos. note that the writebuffer
+        // uses all IDs up to DCACHE_MAX_TX-1 for write transactions.
+        .RdAmoTxId       ( 1             ),
+        .ArianeCfg       ( ArianeCfg     )
+      ) i_wt_dcache (
+        .clk_i           ( clk_i                   ),
+        .rst_ni          ( rst_ni                  ),
+        .enable_i        ( dcache_enable_i         ),
+        .flush_i         ( dcache_flush_i          ),
+        .flush_ack_o     ( dcache_flush_ack_o      ),
+        .miss_o          ( dcache_miss_o           ),
+        .wbuffer_empty_o ( wbuffer_empty_o         ),
+        .wbuffer_not_ni_o ( wbuffer_not_ni_o       ),
+        .amo_req_i       ( dcache_amo_req_i        ),
+        .amo_resp_o      ( dcache_amo_resp_o       ),
+        .req_ports_i     ( dcache_req_ports_i      ),
+        .req_ports_o     ( dcache_req_ports_o      ),
+        .mem_rtrn_vld_i  ( adapter_dcache_rtrn_vld ),
+        .mem_rtrn_i      ( adapter_dcache          ),
+        .mem_data_req_o  ( dcache_adapter_data_req ),
+        .mem_data_ack_i  ( adapter_dcache_data_ack ),
+        .mem_data_o      ( dcache_adapter          )
+      );
 
   `endif
 

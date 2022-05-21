@@ -640,7 +640,6 @@ module ariane import ariane_pkg::*; #(
   // Cache Subsystem
   // -------------------
 
-`ifdef WT_DCACHE
   // this is a cache subsystem that is compatible with OpenPiton
   wt_cache_subsystem #(
     .ArianeCfg            ( ArianeCfg     )
@@ -680,84 +679,45 @@ module ariane import ariane_pkg::*; #(
 `endif
   );
 
-`elsif RISCMAKERS_DCACHE
-  // currently the same subsystem top level interface
-  wt_cache_subsystem #(
-    .ArianeCfg            ( ArianeCfg     )
-  ) i_cache_subsystem (
-    // to D$
-    .clk_i                 ( clk_i                       ),
-    .rst_ni                ( rst_ni                      ),
-    // I$
-    .icache_en_i           ( icache_en_csr               ),
-    .icache_flush_i        ( icache_flush_ctrl_cache     ),
-    .icache_miss_o         ( icache_miss_cache_perf      ),
-    .icache_areq_i         ( icache_areq_ex_cache        ),
-    .icache_areq_o         ( icache_areq_cache_ex        ),
-    .icache_dreq_i         ( icache_dreq_if_cache        ),
-    .icache_dreq_o         ( icache_dreq_cache_if        ),
-    // D$
-    .dcache_enable_i       ( dcache_en_csr_nbdcache      ),
-    .dcache_flush_i        ( dcache_flush_ctrl_cache     ),
-    .dcache_flush_ack_o    ( dcache_flush_ack_cache_ctrl ),
-    // to commit stage
-    .dcache_amo_req_i      ( amo_req                     ),
-    .dcache_amo_resp_o     ( amo_resp                    ),
-    // from PTW, Load Unit  and Store Unit
-    .dcache_miss_o         ( dcache_miss_cache_perf      ),
-    .dcache_req_ports_i    ( dcache_req_ports_ex_cache   ),
-    .dcache_req_ports_o    ( dcache_req_ports_cache_ex   ),
-    // write buffer status
-    .wbuffer_empty_o       ( dcache_commit_wbuffer_empty ),
-    .wbuffer_not_ni_o      ( dcache_commit_wbuffer_not_ni ),
-`ifdef PITON_ARIANE
-    .l15_req_o             ( l15_req_o                   ),
-    .l15_rtrn_i            ( l15_rtrn_i                  )
-`else
-    // memory side
-    .axi_req_o             ( axi_req_o                   ),
-    .axi_resp_i            ( axi_resp_i                  )
-`endif
-  );
+// this cache system does not work (the processor hangs while executing the MNIST application) 
+// commenting it out so that compilation can finish, otherwise we get errors due to the amo ports being non-identical
+//   std_cache_subsystem #(
+//     // note: this only works with one cacheable region
+//     // not as important since this cache subsystem is about to be
+//     // deprecated
+//     .ArianeCfg             ( ArianeCfg                   )
+//   ) i_cache_subsystem (
+//     // to D$
+//     .clk_i                 ( clk_i                       ),
+//     .rst_ni                ( rst_ni                      ),
+//     .priv_lvl_i            ( priv_lvl                    ),
+//     // I$
+//     .icache_en_i           ( icache_en_csr               ),
+//     .icache_flush_i        ( icache_flush_ctrl_cache     ),
+//     .icache_miss_o         ( icache_miss_cache_perf      ),
+//     .icache_areq_i         ( icache_areq_ex_cache        ),
+//     .icache_areq_o         ( icache_areq_cache_ex        ),
+//     .icache_dreq_i         ( icache_dreq_if_cache        ),
+//     .icache_dreq_o         ( icache_dreq_cache_if        ),
+//     // D$
+//     .dcache_enable_i       ( dcache_en_csr_nbdcache      ),
+//     .dcache_flush_i        ( dcache_flush_ctrl_cache     ),
+//     .dcache_flush_ack_o    ( dcache_flush_ack_cache_ctrl ),
+//     // to commit stage
+//     .amo_req_i             ( amo_req                     ),
+//     .amo_resp_o            ( amo_resp                    ),
+//     .dcache_miss_o         ( dcache_miss_cache_perf      ),
+//     // this is statically set to 1 as the std_cache does not have a wbuffer
+//     .wbuffer_empty_o       ( dcache_commit_wbuffer_empty ),
+//     // from PTW, Load Unit  and Store Unit
+//     .dcache_req_ports_i    ( dcache_req_ports_ex_cache   ),
+//     .dcache_req_ports_o    ( dcache_req_ports_cache_ex   ),
+//     // memory side
+//     .axi_req_o             ( axi_req_o                   ),
+//     .axi_resp_i            ( axi_resp_i                  )
+//   );
+//   assign dcache_commit_wbuffer_not_ni = 1'b1;
 
-`else
-  std_cache_subsystem #(
-    // note: this only works with one cacheable region
-    // not as important since this cache subsystem is about to be
-    // deprecated
-    .ArianeCfg             ( ArianeCfg                   )
-  ) i_cache_subsystem (
-    // to D$
-    .clk_i                 ( clk_i                       ),
-    .rst_ni                ( rst_ni                      ),
-    .priv_lvl_i            ( priv_lvl                    ),
-    // I$
-    .icache_en_i           ( icache_en_csr               ),
-    .icache_flush_i        ( icache_flush_ctrl_cache     ),
-    .icache_miss_o         ( icache_miss_cache_perf      ),
-    .icache_areq_i         ( icache_areq_ex_cache        ),
-    .icache_areq_o         ( icache_areq_cache_ex        ),
-    .icache_dreq_i         ( icache_dreq_if_cache        ),
-    .icache_dreq_o         ( icache_dreq_cache_if        ),
-    // D$
-    .dcache_enable_i       ( dcache_en_csr_nbdcache      ),
-    .dcache_flush_i        ( dcache_flush_ctrl_cache     ),
-    .dcache_flush_ack_o    ( dcache_flush_ack_cache_ctrl ),
-    // to commit stage
-    .amo_req_i             ( amo_req                     ),
-    .amo_resp_o            ( amo_resp                    ),
-    .dcache_miss_o         ( dcache_miss_cache_perf      ),
-    // this is statically set to 1 as the std_cache does not have a wbuffer
-    .wbuffer_empty_o       ( dcache_commit_wbuffer_empty ),
-    // from PTW, Load Unit  and Store Unit
-    .dcache_req_ports_i    ( dcache_req_ports_ex_cache   ),
-    .dcache_req_ports_o    ( dcache_req_ports_cache_ex   ),
-    // memory side
-    .axi_req_o             ( axi_req_o                   ),
-    .axi_resp_i            ( axi_resp_i                  )
-  );
-  assign dcache_commit_wbuffer_not_ni = 1'b1;
-`endif
 /*
   // -------------------
   // Parameter Check

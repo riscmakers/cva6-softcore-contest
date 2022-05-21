@@ -41,9 +41,12 @@ questa_version ?= ${QUESTASIM_VERSION}
 #verilator      ?= verilator
 # traget option
 target-options ?=
+
 # additional definess
 # defines        ?= WT_DCACHE
 defines        ?= RISCMAKERS_DCACHE
+defines        += RISCMAKERS_ICACHE
+
 # test name for torture runs (binary name)
 test-location  ?= output/test
 # set to either nothing or -log
@@ -80,7 +83,7 @@ LIB_XILINX_QUESTA_PATH := $(root-dir)fpga/lib_xilinx_questa
 ariane_pkg := include/riscv_pkg.sv                          \
               src/riscv-dbg/src/dm_pkg.sv                   \
               include/ariane_pkg.sv                         \
-              include/riscmakers_dcache_pkg.sv              \
+              include/riscmakers_pkg.sv                     \
               include/cv32a6_imac_sv0_config_pkg.sv         \
               include/cvxif_pkg.sv                          \
               include/std_cache_pkg.sv                      \
@@ -125,7 +128,7 @@ src :=  $(filter-out src/ariane_regfile.sv, $(wildcard src/*.sv))              \
         $(filter-out src/fpu/src/fpu_div_sqrt_mvp/hdl/defs_div_sqrt_mvp.sv,    \
         $(wildcard src/fpu/src/fpu_div_sqrt_mvp/hdl/*.sv))                     \
         $(wildcard src/frontend/*.sv)                                          \
-        $(filter-out src/cache_subsystem/std_no_dcache.sv,                     \
+        $(filter-out $(wildcard src/cache_subsystem/std*.sv),                  \
         $(wildcard src/cache_subsystem/*.sv))                                  \
         $(wildcard src/riscmakers/*.sv)                                        \
         $(wildcard bootrom/*.sv)                                               \
@@ -293,14 +296,6 @@ fpga_filter += $(addprefix $(root-dir), src/util/instr_tracer_if.sv)
 fpga_filter += $(addprefix $(root-dir), src/util/instr_tracer.sv)
 fpga_filter += $(addprefix $(root-dir), src/cva6.sv)
 tbs_fpga := $(addprefix $(root-dir), $(tbs))
-
-# otherwise some asserts fail regarding the cache parameters (index width, associativity, etc.)
-ifdef RISCMAKERS_DCACHE
-        fpga_filter += $(addprefix $(root-dir), $(filter-out src/cache_subsystem/wt_axi_adapter.sv \
-                                                             src/cache_subsystem/cva6_icache_axi_wrapper.sv \
-                                                             src/cache_subsystem/wt_cache_subsystem.sv,                     
-                                                $(wildcard src/cache_subsystem/*.sv)))                                     
-endif
 
 fpga/scripts/add_sources.tcl:
 	@echo read_vhdl        {$(uart_src)}    > fpga/scripts/add_sources.tcl

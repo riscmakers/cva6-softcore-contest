@@ -1,6 +1,6 @@
 
 // *****************************************************************
-// Data cache data store (SRAM)
+// Cache data store (SRAM)
 // Inferring Xilinx block ram IP
 // *****************************************************************
 //
@@ -21,10 +21,10 @@
 
 import ariane_pkg::*; 
 import wt_cache_pkg::*;
-import dcache_pkg::*;
+import riscmakers_pkg::*;
 
-module dcache_data_store #(
-    parameter int unsigned DATA_WIDTH = ariane_pkg::DCACHE_LINE_WIDTH,
+module riscmakers_cache_data_store #(
+    parameter int unsigned DATA_WIDTH = ariane_pkg::DCACHE_LINE_WIDTH, // these parameters (data cache configured) are overwritten in instantiation
     parameter int unsigned NUM_WORDS  = wt_cache_pkg::DCACHE_NUM_WORDS
 )(
     input logic clk_i,

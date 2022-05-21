@@ -8,7 +8,7 @@
 
 import ariane_pkg::*; 
 import wt_cache_pkg::*;
-import dcache_pkg::*;
+import riscmakers_pkg::*;
 
 // ************************
 // Main module declaration
@@ -42,14 +42,29 @@ module riscmakers_dcache
 );
 
     // *****************************
+    // Internal types
+    // *****************************
+
+    typedef enum {
+        IDLE,                       // wait for a CPU memory request
+        TAG_COMPARE,
+        WAIT_MEMORY_READ_ACK,       // wait for main memory to acknowledge read (load) request
+        WAIT_MEMORY_READ_DONE,      // wait for main memory to return with read (load) data
+        WAIT_MEMORY_WRITEBACK_ACK,  // wait for main memory to acknowledge writeback (store) request
+        WAIT_MEMORY_WRITEBACK_DONE, // wait for main memory to finish writeback (store) request
+        WAIT_MEMORY_BYPASS_ACK,     // wait for non-cacheable (I/O space) request to be ack'ed
+        WAIT_MEMORY_BYPASS_DONE     // wait for non-cacheable (I/O space) request to be completed
+    } dcache_state_t;
+
+    // *****************************
     // Internal signal declaration
     // *****************************
 
     // ----- miscellaneous ----
     dcache_state_t current_state_q, next_state_d;   // FSM state register
     writeback_t writeback_d, writeback_q;           // writeback buffer (register)
-    logic [$clog2(dcache_pkg::NUMBER_OF_WORDS_IN_CACHE_BLOCK):0] writeback_request_count_d, writeback_request_count_q; // how many requests have been ack'ed?
-    logic [$clog2(dcache_pkg::NUMBER_OF_WORDS_IN_CACHE_BLOCK):0] writeback_finished_count_d, writeback_finished_count_q; // how many requests have been completed?
+    logic [$clog2(riscmakers_pkg::NUMBER_OF_WORDS_IN_DCACHE_BLOCK):0] writeback_request_count_d, writeback_request_count_q; // how many requests have been ack'ed?
+    logic [$clog2(riscmakers_pkg::NUMBER_OF_WORDS_IN_DCACHE_BLOCK):0] writeback_finished_count_d, writeback_finished_count_q; // how many requests have been completed?
     logic [wt_cache_pkg::CACHE_ID_WIDTH-1:0] WrTxId; 
     logic bypass_cache;                             // force cache to be bypassed for debugging purposes
 
@@ -64,9 +79,9 @@ module riscmakers_dcache
     dcache_req_i_t req_port_i_d, req_port_i_q; 
 
     // ----- cache stores -------
-    tag_store_t tag_store;
-    tag_store_byte_aligned_t tag_store_byte_aligned;
-    data_store_t data_store;
+    dcache_tag_store_t tag_store;
+    dcache_tag_store_byte_aligned_t tag_store_byte_aligned;
+    dcache_data_store_t data_store;
 
     // ------ address -------
     logic [riscv::PLEN-1:0] memory_address; // memory address aligned to the corresponding size request 
@@ -98,10 +113,10 @@ module riscmakers_dcache
     // Instantiated modules
     // ****************************
 
-    dcache_data_store #(
+    riscmakers_cache_data_store #(
         .DATA_WIDTH(ariane_pkg::DCACHE_LINE_WIDTH),
         .NUM_WORDS(wt_cache_pkg::DCACHE_NUM_WORDS)
-    ) i_dcache_data_store (
+    ) i_riscmakers_cache_data_store (
         .clk_i(clk_i),
         .rst_ni(rst_ni),
         .en_i(data_store.enable),
@@ -112,10 +127,10 @@ module riscmakers_dcache
         .rdata_o(data_store.data_i)  
     );
     
-    dcache_tag_store #(
-        .DATA_WIDTH(dcache_pkg::DCACHE_TAG_STORE_DATA_WIDTH), 
+    riscmakers_dcache_tag_store #(
+        .DATA_WIDTH(riscmakers_pkg::DCACHE_TAG_STORE_DATA_WIDTH), 
         .NUM_WORDS(wt_cache_pkg::DCACHE_NUM_WORDS)
-    ) i_dcache_tag_store (
+    ) i_riscmakers_dcache_tag_store (
         .clk_i(clk_i),
         .rst_ni(rst_ni),
         .en_i(tag_store.enable),
@@ -209,7 +224,7 @@ module riscmakers_dcache
 
         // ------ main memory request port ------
         mem_data_req_o = 1'b0;
-        mem_data_o.size = dcache_pkg::MEMORY_REQUEST_SIZE_CACHEBLOCK;
+        mem_data_o.size = riscmakers_pkg::MEMORY_REQUEST_SIZE_CACHEBLOCK;
         mem_data_o.data = '0;  
         mem_data_o.paddr = '0;   
         mem_data_o.rtype = wt_cache_pkg::DCACHE_LOAD_REQ;
@@ -254,7 +269,7 @@ module riscmakers_dcache
                     // Load cache hit
                     // ========================
                     if (!req_port_i_q.data_we) begin
-                        req_ports_o[LOAD_UNIT_PORT].data_rdata = cache_block_to_cpu_word(data_store.data_i, {req_port_i_q.address_tag, req_port_i_q.address_index}, 1'b0);
+                        req_ports_o[LOAD_UNIT_PORT].data_rdata = dcache_block_to_cpu_word(data_store.data_i, {req_port_i_q.address_tag, req_port_i_q.address_index}, 1'b0);
                         req_ports_o[LOAD_UNIT_PORT].data_rvalid = 1'b1; // let the load unit know the data is available
 
                         serve_new_request();
@@ -279,7 +294,7 @@ module riscmakers_dcache
                         data_store.enable = 1'b1;
                         data_store.write_enable = 1'b1;
                         data_store.data_o[cache_block_offset*riscv::XLEN +: riscv::XLEN] = req_port_i_q.data_wdata;
-                        data_store.byte_enable = cache_block_byte_enable(memory_address[wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0], {1'b0, req_port_i_q.data_size});
+                        data_store.byte_enable = dcache_block_byte_enable(memory_address[wt_cache_pkg::DCACHE_OFFSET_WIDTH-1:0], {1'b0, req_port_i_q.data_size});
 
                         next_state_d = IDLE;
                     end 
@@ -292,7 +307,7 @@ module riscmakers_dcache
 
                     mem_data_o.rtype    = DCACHE_LOAD_REQ;
                     mem_data_o.tid      = RdAmoTxId;                
-                    mem_data_o.size     = dcache_pkg::MEMORY_REQUEST_SIZE_CACHEBLOCK;
+                    mem_data_o.size     = riscmakers_pkg::MEMORY_REQUEST_SIZE_CACHEBLOCK;
                     mem_data_o.paddr    = cpu_to_memory_address({req_port_i_q.address_tag, req_port_i_q.address_index}, mem_data_o.size);
                     mem_data_req_o      = 1'b1;
 
@@ -311,7 +326,7 @@ module riscmakers_dcache
                 else begin
                     mem_data_o.rtype    = DCACHE_LOAD_REQ;
                     mem_data_o.tid      = RdAmoTxId;                
-                    mem_data_o.size     = dcache_pkg::MEMORY_REQUEST_SIZE_CACHEBLOCK;
+                    mem_data_o.size     = riscmakers_pkg::MEMORY_REQUEST_SIZE_CACHEBLOCK;
                     mem_data_o.paddr    = cpu_to_memory_address({req_port_i_q.address_tag, req_port_i_q.address_index}, mem_data_o.size);
                     mem_data_req_o      = 1'b1;
 
@@ -345,7 +360,7 @@ module riscmakers_dcache
                     // Load cache miss
                     // ========================
                     if (!req_port_i_q.data_we) begin
-                        req_ports_o[LOAD_UNIT_PORT].data_rdata = cache_block_to_cpu_word(mem_rtrn_i.data, {req_port_i_q.address_tag, req_port_i_q.address_index}, 1'b0);
+                        req_ports_o[LOAD_UNIT_PORT].data_rdata = dcache_block_to_cpu_word(mem_rtrn_i.data, {req_port_i_q.address_tag, req_port_i_q.address_index}, 1'b0);
                         req_ports_o[LOAD_UNIT_PORT].data_rvalid = 1'b1;                       
                     end
                     // ========================
@@ -370,12 +385,12 @@ module riscmakers_dcache
                         update_writeback_buffer = 1'b1;
 
                         writeback_d.flag = 1'b1; // not strictly necessary to buffer this, but for debugging it might be useful
-                        writeback_d.address = cpu_to_memory_address({tag_store.data_i.tag, req_port_i_q.address_index}, dcache_pkg::MEMORY_REQUEST_SIZE_CACHEBLOCK);
+                        writeback_d.address = cpu_to_memory_address({tag_store.data_i.tag, req_port_i_q.address_index}, riscmakers_pkg::MEMORY_REQUEST_SIZE_CACHEBLOCK);
                         writeback_d.data = data_store.data_i;
 
                         mem_data_o.rtype    = DCACHE_STORE_REQ;
                         mem_data_o.tid      = '0;                                // first word transfer, the count should be 0
-                        mem_data_o.size     = dcache_pkg::MEMORY_REQUEST_SIZE_FOUR_BYTES;
+                        mem_data_o.size     = riscmakers_pkg::MEMORY_REQUEST_SIZE_FOUR_BYTES;
                         mem_data_o.paddr    = writeback_d.address;               // first word transfer, so the base address is the cache block base address
                         mem_data_o.data     = writeback_d.data[riscv::XLEN-1:0]; // first word transfer, so we start with the first word in cache block
                         mem_data_req_o      = 1'b1;   
@@ -400,7 +415,7 @@ module riscmakers_dcache
                 // keep the request active until it is acknowledged by main memory
                 mem_data_o.rtype    = DCACHE_STORE_REQ;
                 mem_data_o.tid      = '0;                                // first word transfer, the count should be 0
-                mem_data_o.size     = dcache_pkg::MEMORY_REQUEST_SIZE_FOUR_BYTES;
+                mem_data_o.size     = riscmakers_pkg::MEMORY_REQUEST_SIZE_FOUR_BYTES;
                 mem_data_o.paddr    = writeback_q.address;               // first word transfer, so the base address is the cache block base address
                 mem_data_o.data     = writeback_q.data[riscv::XLEN-1:0]; // first word transfer, so we start with the first word in cache block
                 mem_data_req_o      = 1'b1;   
@@ -423,7 +438,7 @@ module riscmakers_dcache
 
                 // writeback complete: we requested all the words, and all the words were written back
                 // warning: constant comparision expects 32 bits
-                if (writeback_finished_count_d == dcache_pkg::NUMBER_OF_WORDS_IN_CACHE_BLOCK) begin
+                if (writeback_finished_count_d == riscmakers_pkg::NUMBER_OF_WORDS_IN_DCACHE_BLOCK) begin
                     writeback_request_count_d = '0;
                     writeback_finished_count_d = '0;
 
@@ -433,10 +448,10 @@ module riscmakers_dcache
 
                 // we still haven't requested all the words
                 // warning: constant comparision expects 32 bits
-                else if (writeback_request_count_d != dcache_pkg::NUMBER_OF_WORDS_IN_CACHE_BLOCK) begin
+                else if (writeback_request_count_d != riscmakers_pkg::NUMBER_OF_WORDS_IN_DCACHE_BLOCK) begin
                     mem_data_o.rtype    = DCACHE_STORE_REQ;
                     mem_data_o.tid      = writeback_request_count_d; // LHS expects 2 bits, RHS generates 3 bits
-                    mem_data_o.size     = dcache_pkg::MEMORY_REQUEST_SIZE_FOUR_BYTES;
+                    mem_data_o.size     = riscmakers_pkg::MEMORY_REQUEST_SIZE_FOUR_BYTES;
                     mem_data_o.paddr    = writeback_q.address + writeback_request_count_d*(riscv::XLEN/8);
                     mem_data_o.data     = writeback_q.data[writeback_request_count_d*riscv::XLEN +: riscv::XLEN];
                     mem_data_req_o      = 1'b1;   
@@ -481,7 +496,7 @@ module riscmakers_dcache
                 else if ( mem_rtrn_vld_i && ( mem_rtrn_i.rtype == ( (!req_port_i_q.data_we) ? DCACHE_LOAD_ACK : DCACHE_STORE_ACK ) ) ) begin
                     // only the load unit expects return data
                     if (!req_port_i_q.data_we) begin
-                        req_ports_o[LOAD_UNIT_PORT].data_rdata = cache_block_to_cpu_word(
+                        req_ports_o[LOAD_UNIT_PORT].data_rdata = dcache_block_to_cpu_word(
                                                                     mem_rtrn_i.data,
                                                                     {req_port_i_q.address_tag, req_port_i_q.address_index},
                                                                     mem_data_o.nc

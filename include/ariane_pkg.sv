@@ -427,12 +427,21 @@ package ariane_pkg;
     localparam int unsigned DCACHE_INDEX_WIDTH = $clog2(`CONFIG_L1D_SIZE / DCACHE_SET_ASSOC);
     localparam int unsigned DCACHE_TAG_WIDTH   = riscv::PLEN - DCACHE_INDEX_WIDTH;
 `else
-    // I$
-	localparam int unsigned CONFIG_L1I_SIZE    = 16*1024;
-    localparam int unsigned ICACHE_SET_ASSOC   = 4; // Must be between 4 to 64
-    localparam int unsigned ICACHE_INDEX_WIDTH = $clog2(CONFIG_L1I_SIZE / ICACHE_SET_ASSOC);  // in bit, contains also offset width
-    localparam int unsigned ICACHE_TAG_WIDTH   = riscv::PLEN-ICACHE_INDEX_WIDTH;  // in bit
-    localparam int unsigned ICACHE_LINE_WIDTH  = 128; // in bit
+    `ifdef RISCMAKERS_ICACHE
+        // I$
+        localparam int unsigned CONFIG_L1I_SIZE    = 16*1024;
+        localparam int unsigned ICACHE_SET_ASSOC   = 4; // Not used in direct mapped cache, but need this constant for wt_cache_pkg definitions
+        localparam int unsigned ICACHE_INDEX_WIDTH = $clog2(CONFIG_L1I_SIZE);  // in bit, contains also offset width
+        localparam int unsigned ICACHE_TAG_WIDTH   = riscv::PLEN-ICACHE_INDEX_WIDTH;  // in bit
+        localparam int unsigned ICACHE_LINE_WIDTH  = 128; // in bit
+    `else
+        // I$
+        localparam int unsigned CONFIG_L1I_SIZE    = 16*1024;
+        localparam int unsigned ICACHE_SET_ASSOC   = 4; // Must be between 4 to 64
+        localparam int unsigned ICACHE_INDEX_WIDTH = $clog2(CONFIG_L1I_SIZE / ICACHE_SET_ASSOC);  // in bit, contains also offset width
+        localparam int unsigned ICACHE_TAG_WIDTH   = riscv::PLEN-ICACHE_INDEX_WIDTH;  // in bit
+        localparam int unsigned ICACHE_LINE_WIDTH  = 128; // in bit
+    `endif 
 
     `ifdef RISCMAKERS_DCACHE
         // D$
@@ -449,7 +458,6 @@ package ariane_pkg;
         localparam int unsigned DCACHE_TAG_WIDTH   = riscv::PLEN-DCACHE_INDEX_WIDTH;  // in bit
         localparam int unsigned DCACHE_LINE_WIDTH  = 128; // in bit
     `endif
-
 `endif
 
     localparam bit CVXIF_PRESENT = cva6_config_pkg::CVA6ConfigCvxifEn;

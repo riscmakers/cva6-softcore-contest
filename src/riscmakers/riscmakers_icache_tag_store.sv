@@ -23,9 +23,9 @@ import ariane_pkg::*;
 import wt_cache_pkg::*;
 import riscmakers_pkg::*;
 
-module riscmakers_dcache_tag_store #(
-    parameter int unsigned DATA_WIDTH = riscmakers_pkg::DCACHE_TAG_STORE_DATA_WIDTH,
-    parameter int unsigned NUM_WORDS  = wt_cache_pkg::DCACHE_NUM_WORDS
+module riscmakers_icache_tag_store #(
+    parameter int unsigned DATA_WIDTH = riscmakers_pkg::ICACHE_TAG_STORE_DATA_WIDTH,
+    parameter int unsigned NUM_WORDS  = wt_cache_pkg::ICACHE_NUM_WORDS
 )(  
 
     input logic clk_i,
@@ -61,7 +61,7 @@ module riscmakers_dcache_tag_store #(
                 
                 ram[k] = val;
                 // valid bit has to be cleared to avoid erroneous cache hits from occuring
-                ram[k][riscmakers_pkg::DCACHE_TAG_STORE_VALID_BIT_POSITION] = 1'b0;
+                ram[k][riscmakers_pkg::ICACHE_TAG_STORE_VALID_BIT_POSITION] = 1'b0;
 
             end
         end 

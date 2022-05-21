@@ -13,6 +13,9 @@
 // RISC Makers data cache
 `define RISCMAKERS_DCACHE
 
+// RISC Makers instruction cache
+`define RISCMAKERS_ICACHE
+
 // debug probe
 `define LAUTERBACH_DEBUG_PROBE
 

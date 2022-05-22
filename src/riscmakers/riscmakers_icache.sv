@@ -60,7 +60,7 @@ module riscmakers_icache
     // *****************************
 
     icache_state_t current_state_q, next_state_d;   // FSM state register
-    logic bypass_cache;                             // force cache to be bypassed for debugging purposes
+    logic bypass_cache_d, bypass_cache_q;           
     logic tag_compare_hit;                          // cache hit
     logic [riscv::PLEN-1:0] req_address_d, req_address_q; 
     icache_tag_store_t tag_store;
@@ -72,7 +72,6 @@ module riscmakers_icache
     // Continuous assignment signals
     // ******************************
 
-    assign bypass_cache = 1'b0;
     assign mem_data_o.tid = RdTxId;
     assign data_store.address = req_address_d[ariane_pkg::ICACHE_INDEX_WIDTH-1:wt_cache_pkg::ICACHE_OFFSET_WIDTH]; // d output because we look at the incoming request
     assign tag_store.address = req_address_d[ariane_pkg::ICACHE_INDEX_WIDTH-1:wt_cache_pkg::ICACHE_OFFSET_WIDTH]; 
@@ -82,7 +81,11 @@ module riscmakers_icache
     assign data_store.data_o = mem_rtrn_i.data;
     assign tag_store.data_o.tag = req_address_q[riscv::PLEN-1:ICACHE_INDEX_WIDTH];
     assign addr_ni = is_inside_nonidempotent_regions(ArianeCfg, req_address_q);
+    // assign bypass_cache_d = 1'b1; // for debugging purposes, we can force bypass_cache_d to 1 so that the cache is always bypassed
+    assign bypass_cache_d = (dreq_o.ready & dreq_i.req) ? mem_data_o.nc : bypass_cache_q;
 
+    // we get a linter warning: Feedback to public clock or circular logic, but this seems to be due mem_data_o.paddr and mem_data_o.nc being in the same packed structure
+    // when the (mem_data_o.nc) is set to 1'b1, the warning goes away, but stays even when we explictly set mem_data_o.nc to 1 (above)
     assign mem_data_o.nc = (~en_i) | (~ariane_pkg::is_inside_cacheable_regions(ArianeCfg, 
                                      {{{64-ariane_pkg::ICACHE_TAG_WIDTH-ariane_pkg::ICACHE_INDEX_WIDTH}{1'b0}}, 
                                      req_address_d[riscv::PLEN-1:ariane_pkg::ICACHE_INDEX_WIDTH], 
@@ -95,33 +98,72 @@ module riscmakers_icache
     // Instantiated modules
     // ****************************
 
-    riscmakers_cache_data_store #(
-        .DATA_WIDTH(ariane_pkg::ICACHE_LINE_WIDTH),
-        .NUM_WORDS(wt_cache_pkg::ICACHE_NUM_WORDS)
+    riscmakers_cache_store #(
+        .NB_COL(ariane_pkg::ICACHE_LINE_WIDTH/8),                           // Specify number of columns (number of bytes)
+        .COL_WIDTH(8),                        // Specify column width (byte width, typically 8 or 9)
+        .RAM_DEPTH(wt_cache_pkg::ICACHE_NUM_WORDS),                     // Specify RAM depth (number of entries)
+        .RAM_PERFORMANCE("LOW_LATENCY"), // Select "HIGH_PERFORMANCE" or "LOW_LATENCY" 
+        .INIT_FILE("")                        // Specify name/location of RAM initialization file if using one (leave blank if not)
     ) i_riscmakers_icache_data_store (
-        .clk_i(clk_i),
-        .rst_ni(rst_ni),
-        .en_i(data_store.enable),
-        .we_i(data_store.write_enable),
-        .en_wr_byte_i(data_store.byte_enable),
-        .addr_i(data_store.address),
-        .wdata_i(data_store.data_o),
-        .rdata_o(data_store.data_i)  
+        .addra(data_store.address),     // Address bus, width determined from RAM_DEPTH
+        .dina(data_store.data_o ),       // RAM input data, width determined from NB_COL*COL_WIDTH
+        .clka(clk_i),       // Clock
+        .wea(data_store.byte_enable),         // Byte-write enable, width determined from NB_COL
+        .ena(data_store.enable),         // RAM Enable, for additional power savings, disable port when not in use
+        .rsta(rst_ni),       // Output reset (does not affect memory contents)
+        .regcea(),   // Output register enable
+        .douta(data_store.data_i)      // RAM output data, width determined from NB_COL*COL_WIDTH
     );
-    
-    riscmakers_icache_tag_store #(
-        .DATA_WIDTH(riscmakers_pkg::ICACHE_TAG_STORE_DATA_WIDTH), 
-        .NUM_WORDS(wt_cache_pkg::ICACHE_NUM_WORDS)
+
+    riscmakers_cache_store #(
+        .NB_COL(riscmakers_pkg::ICACHE_TAG_STORE_DATA_WIDTH/8),                           // Specify number of columns (number of bytes)
+        .COL_WIDTH(8),                        // Specify column width (byte width, typically 8 or 9)
+        .RAM_DEPTH(wt_cache_pkg::ICACHE_NUM_WORDS),                     // Specify RAM depth (number of entries)
+        .RAM_PERFORMANCE("LOW_LATENCY"), // Select "HIGH_PERFORMANCE" or "LOW_LATENCY" 
+        .INIT_FILE("")                        // Specify name/location of RAM initialization file if using one (leave blank if not)
     ) i_riscmakers_icache_tag_store (
-        .clk_i(clk_i),
-        .rst_ni(rst_ni),
-        .en_i(tag_store.enable),
-        .we_i(tag_store.write_enable),
-        .en_wr_byte_i(tag_store_byte_aligned.byte_enable),      
-        .addr_i(tag_store.address),
-        .wdata_i(tag_store_byte_aligned.data_o),
-        .rdata_o(tag_store_byte_aligned.data_i)
+        .addra(tag_store.address),     // Address bus, width determined from RAM_DEPTH
+        .dina(tag_store_byte_aligned.data_o),       // RAM input data, width determined from NB_COL*COL_WIDTH
+        .clka(clk_i),       // Clock
+        .wea(tag_store_byte_aligned.byte_enable),         // Byte-write enable, width determined from NB_COL
+        .ena(tag_store.enable),         // RAM Enable, for additional power savings, disable port when not in use
+        .rsta(rst_ni),       // Output reset (does not affect memory contents)
+        .regcea(),   // Output register enable
+        .douta(tag_store_byte_aligned.data_i)      // RAM output data, width determined from NB_COL*COL_WIDTH
     );
+
+
+    // riscmakers_cache_store #(
+    //     .NUM_WORDS(wt_cache_pkg::ICACHE_NUM_WORDS),
+    //     .DATA_WIDTH(ariane_pkg::ICACHE_LINE_WIDTH),
+    //     .OUT_REGS(0),
+    //     .SIM_INIT(1) // zeros
+    // ) i_riscmakers_icache_data_store (
+    //     .Clk_CI    ( clk_i   ),
+    //     .Rst_RBI   ( rst_ni  ),
+    //     .CSel_SI   ( data_store.enable  ),
+    //     .WrEn_SI   ( data_store.write_enable    ),
+    //     .BEn_SI    ( data_store.byte_enable   ),
+    //     .WrData_DI ( data_store.data_o ),
+    //     .Addr_DI   ( data_store.address  ),
+    //     .RdData_DO ( data_store.data_i )
+    // );
+
+    // riscmakers_cache_store #(
+    //     .NUM_WORDS(wt_cache_pkg::ICACHE_NUM_WORDS),
+    //     .DATA_WIDTH(riscmakers_pkg::ICACHE_TAG_STORE_DATA_WIDTH),
+    //     .OUT_REGS(0),
+    //     .SIM_INIT(1) // zeros
+    // ) i_riscmakers_icache_tag_store (
+    //     .Clk_CI    ( clk_i   ),
+    //     .Rst_RBI   ( rst_ni  ),
+    //     .CSel_SI   ( tag_store.enable  ),
+    //     .WrEn_SI   ( tag_store.write_enable    ),
+    //     .BEn_SI    ( tag_store_byte_aligned.byte_enable   ),
+    //     .WrData_DI ( tag_store_byte_aligned.data_o ),
+    //     .Addr_DI   ( tag_store.address  ),
+    //     .RdData_DO ( tag_store_byte_aligned.data_i )
+    // );
 
     // *******************************
     // Byte alignment
@@ -152,8 +194,8 @@ module riscmakers_icache
 
         // ------ request port ---------
         dreq_o.data = '0;
-        dreq_o.ready     = 1'b0;
-        dreq_o.valid     = 1'b0;
+        dreq_o.ready = 1'b0;
+        dreq_o.valid = 1'b0;
         mem_data_req_o = 1'b0;
         
         // ------ tag store ------
@@ -179,6 +221,7 @@ module riscmakers_icache
             WAIT_NON_SPECULATIVE_FLAG: begin
                 if (dreq_i.kill_s2) begin
                     serve_new_request();
+                    //next_state_d = IDLE;
                 end             
                 else if (!dreq_i.spec || !addr_ni) begin
                     mem_data_req_o = 1'b1;
@@ -189,6 +232,7 @@ module riscmakers_icache
             TAG_COMPARE: begin
                 if (dreq_i.kill_s2) begin
                     serve_new_request();
+                    //next_state_d = IDLE;
                 end 
                 // (!dreq_i.spec || !addr_ni) I'm adding because its in cva6_icache.sv, not sure why we really need this
                 // I think we need to wait for the request to no longer be speculative?
@@ -202,6 +246,7 @@ module riscmakers_icache
                         dreq_o.valid = 1'b1; // let the load unit know the data is available
 
                         serve_new_request();
+                        //next_state_d = IDLE;
                     end 
                     // ========================
                     // Cache miss
@@ -225,6 +270,7 @@ module riscmakers_icache
                     // we need to return to IDLE (or serve a new request) otherwise we will be locked in the WAIT_KILL_REQUEST state
                     if ( mem_rtrn_vld_i && (mem_rtrn_i.rtype == ICACHE_IFILL_ACK) ) begin
                         serve_new_request();
+                        //next_state_d = IDLE;
                     end 
                     // we need to go to KILL_REQUEST state, so that once the memory load finishes
                     // we don't use the output and instead we ignore it
@@ -242,7 +288,7 @@ module riscmakers_icache
                     // ======================================================================
                     // Allocate fetched cache block to store if cacheable
                     // ======================================================================
-                    if (!mem_data_o.nc & !bypass_cache) begin
+                    if (!bypass_cache_q) begin
                         data_store.enable = 1'b1;
                         data_store.write_enable = 1'b1;
                         data_store.byte_enable = '1;
@@ -257,6 +303,7 @@ module riscmakers_icache
                     // we can serve a new request immediately because we won't be writing to the tag or data store if it was a non-cacheable request
                     else begin
                         serve_new_request();
+                        //next_state_d = IDLE;
                     end 
                 end 
             end 
@@ -270,6 +317,7 @@ module riscmakers_icache
             WAIT_KILL_REQUEST : begin
                 if (mem_rtrn_vld_i && mem_rtrn_i.rtype == ICACHE_IFILL_ACK) begin
                     serve_new_request();
+                    //next_state_d = IDLE;
                 end
             end 
 
@@ -298,6 +346,15 @@ module riscmakers_icache
         end
     end
 
+   always_ff @(posedge(clk_i)) begin: update_bypass_flag
+        if (!rst_ni) begin
+            bypass_cache_q <= '0;
+        end 
+        else begin
+            bypass_cache_q <= bypass_cache_d;
+        end
+    end
+
     // *************************************
     // Reused request code
     // *************************************
@@ -307,7 +364,7 @@ module riscmakers_icache
         dreq_o.ready = 1'b1;
         if (dreq_i.req) begin
             // are we requesting access to I/O space or are we forcing the cache to be bypassed?
-            if (mem_data_o.nc | bypass_cache) begin
+            if (bypass_cache_d) begin
                 // yes, so we don't need to compare tags since the cache will be bypassed
                 // is the request speculative? 
                 if (dreq_i.spec) begin

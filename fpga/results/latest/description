@@ -1,1 +1,1 @@
-Implement riscmakers instruction cache (direct mapped)
+After fixing timing loop and BRAM instantiation, run full sim for instruction cache (riscmakers)

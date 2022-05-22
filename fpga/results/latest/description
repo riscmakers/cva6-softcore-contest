@@ -1,1 +1,1 @@
-After fixing timing loop and BRAM instantiation, run full sim for instruction cache (riscmakers)
+After fixing jtag error, run full sim with 8 KiB instruction cache (128 bit cache block size). Note that a post impl sim has not yet been done with the cache after fixing the jtag error and the cache at 16 KiB.

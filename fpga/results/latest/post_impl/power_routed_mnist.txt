@@ -1,7 +1,7 @@
 Copyright 1986-2020 Xilinx, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2020.1 (lin64) Build 2902540 Wed May 27 19:54:35 MDT 2020
-| Date             : Sun May 22 14:59:09 2022
+| Date             : Sun May 22 20:52:34 2022
 | Host             : riscmakers.home running 64-bit CentOS Linux release 8.5.2111
 | Command          : report_power -file work-sim/power_routed_mnist.txt -name power_1
 | Design           : cva6_zybo_z7_20
@@ -30,18 +30,18 @@ Table of Contents
 ----------
 
 +--------------------------+----------------------+
-| Total On-Chip Power (W)  | 0.283                |
+| Total On-Chip Power (W)  | 0.282                |
 | Design Power Budget (W)  | Unspecified*         |
 | Power Budget Margin (W)  | NA                   |
-| Dynamic (W)              | 0.171                |
+| Dynamic (W)              | 0.170                |
 | Device Static (W)        | 0.112                |
 | Effective TJA (C/W)      | 11.5                 |
-| Max Ambient (C)          | 81.7                 |
-| Junction Temperature (C) | 28.3                 |
+| Max Ambient (C)          | 81.8                 |
+| Junction Temperature (C) | 28.2                 |
 | Confidence Level         | Medium               |
 | Setting File             | ---                  |
 | Simulation Activity File | work-sim/routed.saif |
-| Design Nets Matched      | 87%   (50140/57788)  |
+| Design Nets Matched      | 87%   (50030/57678)  |
 +--------------------------+----------------------+
 * Specify Design Power Budget using, set_operating_conditions -design_power_budget <value in Watts>
 
@@ -53,21 +53,21 @@ Table of Contents
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
 | Clocks                   |     0.024 |        6 |       --- |             --- |
-| Slice Logic              |     0.013 |    51062 |       --- |             --- |
-|   LUT as Logic           |     0.012 |    22500 |     53200 |           42.29 |
+| Slice Logic              |     0.012 |    50951 |       --- |             --- |
+|   LUT as Logic           |     0.012 |    22458 |     53200 |           42.21 |
 |   Register               |    <0.001 |    20559 |    106400 |           19.32 |
 |   F7/F8 Muxes            |    <0.001 |      875 |     53200 |            1.64 |
-|   CARRY4                 |    <0.001 |     1182 |     13300 |            8.89 |
+|   CARRY4                 |    <0.001 |     1183 |     13300 |            8.89 |
 |   LUT as Distributed RAM |    <0.001 |       52 |     17400 |            0.30 |
 |   LUT as Shift Register  |    <0.001 |      121 |     17400 |            0.70 |
 |   Others                 |     0.000 |      633 |       --- |             --- |
-| Signals                  |     0.017 |    38912 |       --- |             --- |
-| Block RAM                |     0.005 |     64.5 |       140 |           46.07 |
+| Signals                  |     0.016 |    38798 |       --- |             --- |
+| Block RAM                |     0.005 |       62 |       140 |           44.29 |
 | MMCM                     |     0.113 |        1 |         4 |           25.00 |
 | DSPs                     |    <0.001 |        4 |       220 |            1.82 |
 | I/O                      |    <0.001 |        9 |       125 |            7.20 |
 | Static Power             |     0.112 |          |           |                 |
-| Total                    |     0.283 |          |           |                 |
+| Total                    |     0.282 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -77,7 +77,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.067 |       0.058 |      0.009 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.066 |       0.057 |      0.009 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.073 |       0.062 |      0.011 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.001 |       0.000 |      0.001 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -156,8 +156,8 @@ Table of Contents
 +-----------------------------+-----------+
 | Name                        | Power (W) |
 +-----------------------------+-----------+
-| cva6_zybo_z7_20             |     0.171 |
-|   i_ariane                  |     0.043 |
+| cva6_zybo_z7_20             |     0.170 |
+|   i_ariane                  |     0.042 |
 |     csr_regfile_i           |     0.001 |
 |     ex_stage_i              |     0.003 |
 |       lsu_i                 |     0.003 |
@@ -169,12 +169,12 @@ Table of Contents
 |       i_instr_queue         |     0.003 |
 |       i_instr_realign       |     0.001 |
 |     id_stage_i              |     0.002 |
-|     issue_stage_i           |     0.018 |
+|     issue_stage_i           |     0.017 |
 |       i_issue_read_operands |     0.009 |
 |       i_scoreboard          |     0.009 |
 |   i_ariane_peripherals      |     0.003 |
 |     gen_uart.i_apb_uart     |     0.002 |
-|   i_axi_xbar                |     0.008 |
+|   i_axi_xbar                |     0.007 |
 |   i_xlnx_clk_gen            |     0.113 |
 |     inst                    |     0.113 |
 +-----------------------------+-----------+

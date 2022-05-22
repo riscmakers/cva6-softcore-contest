@@ -113,73 +113,40 @@ module riscmakers_dcache
     // Instantiated modules
     // ****************************
 
-  //  Xilinx Single Port Byte-Write Write First RAM
+  // Xilinx Single Port Byte-Write Write First RAM
   riscmakers_cache_store #(
-    .NB_COL(ariane_pkg::DCACHE_LINE_WIDTH/8),                           // Specify number of columns (number of bytes)
-    .COL_WIDTH(8),                        // Specify column width (byte width, typically 8 or 9)
-    .RAM_DEPTH(wt_cache_pkg::DCACHE_NUM_WORDS),                     // Specify RAM depth (number of entries)
-    .RAM_PERFORMANCE("LOW_LATENCY"), // Select "HIGH_PERFORMANCE" or "LOW_LATENCY" 
-    .INIT_FILE("")                        // Specify name/location of RAM initialization file if using one (leave blank if not)
+    .NB_COL(ariane_pkg::DCACHE_LINE_WIDTH/8),    // Specify number of columns (number of bytes)
+    .COL_WIDTH(8),                               // Specify column width (byte width, typically 8 or 9)
+    .RAM_DEPTH(wt_cache_pkg::DCACHE_NUM_WORDS),  // Specify RAM depth (number of entries)
+    .RAM_PERFORMANCE("LOW_LATENCY"),             // Select "HIGH_PERFORMANCE" or "LOW_LATENCY" 
+    .INIT_FILE("")                               // Specify name/location of RAM initialization file if using one (leave blank if not)
   ) i_riscmakers_dcache_data_store (
-    .addra(data_store.address),     // Address bus, width determined from RAM_DEPTH
-    .dina(data_store.data_o ),       // RAM input data, width determined from NB_COL*COL_WIDTH
-    .clka(clk_i),       // Clock
-    .wea(data_store.byte_enable),         // Byte-write enable, width determined from NB_COL
-    .ena(data_store.enable),         // RAM Enable, for additional power savings, disable port when not in use
-    .rsta(rst_ni),       // Output reset (does not affect memory contents)
-    .regcea(),   // Output register enable
-    .douta(data_store.data_i)      // RAM output data, width determined from NB_COL*COL_WIDTH
+    .addra(data_store.address),                  // Address bus, width determined from RAM_DEPTH
+    .dina(data_store.data_o ),                   // RAM input data, width determined from NB_COL*COL_WIDTH
+    .clka(clk_i),                                // Clock
+    .wea(data_store.byte_enable),                // Byte-write enable, width determined from NB_COL
+    .ena(data_store.enable),                     // RAM Enable, for additional power savings, disable port when not in use
+    .rsta(rst_ni),                               // Output reset (does not affect memory contents)
+    .regcea(),                                   // Output register enable
+    .douta(data_store.data_i)                    // RAM output data, width determined from NB_COL*COL_WIDTH
   );
 
   riscmakers_cache_store #(
-    .NB_COL(riscmakers_pkg::DCACHE_TAG_STORE_DATA_WIDTH/8),                           // Specify number of columns (number of bytes)
-    .COL_WIDTH(8),                        // Specify column width (byte width, typically 8 or 9)
-    .RAM_DEPTH(wt_cache_pkg::DCACHE_NUM_WORDS),                     // Specify RAM depth (number of entries)
-    .RAM_PERFORMANCE("LOW_LATENCY"), // Select "HIGH_PERFORMANCE" or "LOW_LATENCY" 
-    .INIT_FILE("")                        // Specify name/location of RAM initialization file if using one (leave blank if not)
+    .NB_COL(riscmakers_pkg::DCACHE_TAG_STORE_DATA_WIDTH/8),
+    .COL_WIDTH(8),
+    .RAM_DEPTH(wt_cache_pkg::DCACHE_NUM_WORDS),
+    .RAM_PERFORMANCE("LOW_LATENCY"),
+    .INIT_FILE("")
   ) i_riscmakers_dcache_tag_store (
-    .addra(tag_store.address),     // Address bus, width determined from RAM_DEPTH
-    .dina(tag_store_byte_aligned.data_o),       // RAM input data, width determined from NB_COL*COL_WIDTH
-    .clka(clk_i),       // Clock
-    .wea(tag_store_byte_aligned.byte_enable),         // Byte-write enable, width determined from NB_COL
-    .ena(tag_store.enable),         // RAM Enable, for additional power savings, disable port when not in use
-    .rsta(rst_ni),       // Output reset (does not affect memory contents)
-    .regcea(),   // Output register enable
-    .douta(tag_store_byte_aligned.data_i)      // RAM output data, width determined from NB_COL*COL_WIDTH
+    .addra(tag_store.address),
+    .dina(tag_store_byte_aligned.data_o),
+    .clka(clk_i),
+    .wea(tag_store_byte_aligned.byte_enable),
+    .ena(tag_store.enable),
+    .rsta(rst_ni),
+    .regcea(),
+    .douta(tag_store_byte_aligned.data_i)
   );
-
-    // riscmakers_cache_store #(
-    //     .NUM_WORDS(wt_cache_pkg::DCACHE_NUM_WORDS),
-    //     .DATA_WIDTH(ariane_pkg::DCACHE_LINE_WIDTH),
-    //     .OUT_REGS(0),
-    //     .SIM_INIT(1) // zeros
-    // ) i_riscmakers_dcache_data_store (
-    //     .Clk_CI    ( clk_i   ),
-    //     .Rst_RBI   ( rst_ni  ),
-    //     .CSel_SI   ( data_store.enable  ),
-    //     .WrEn_SI   ( data_store.write_enable    ),
-    //     .BEn_SI    ( data_store.byte_enable   ),
-    //     .WrData_DI ( data_store.data_o ),
-    //     .Addr_DI   ( data_store.address  ),
-    //     .RdData_DO ( data_store.data_i )
-    // );
-
-    // riscmakers_cache_store #(
-    //     .NUM_WORDS(wt_cache_pkg::DCACHE_NUM_WORDS),
-    //     .DATA_WIDTH(riscmakers_pkg::DCACHE_TAG_STORE_DATA_WIDTH),
-    //     .OUT_REGS(0),
-    //     .SIM_INIT(1) // zeros
-    // ) i_riscmakers_dcache_tag_store (
-    //     .Clk_CI    ( clk_i   ),
-    //     .Rst_RBI   ( rst_ni  ),
-    //     .CSel_SI   ( tag_store.enable  ),
-    //     .WrEn_SI   ( tag_store.write_enable    ),
-    //     .BEn_SI    ( tag_store_byte_aligned.byte_enable   ),
-    //     .WrData_DI ( tag_store_byte_aligned.data_o ),
-    //     .Addr_DI   ( tag_store.address  ),
-    //     .RdData_DO ( tag_store_byte_aligned.data_i )
-    // );
-
 
     // *******************************
     // Requests

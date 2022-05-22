@@ -225,7 +225,6 @@ package riscmakers_pkg;
     endfunction
 
 
-    // !!!!!!!!!! Needs to be tested !!!!!!!!!!!!!!!
     // for extracting a CPU word from either the mem_rtrn_i.data field or from the data store
     function automatic riscv::xlen_t icache_block_to_cpu_word (
         input logic [ariane_pkg::ICACHE_LINE_WIDTH-1:0] cache_block,

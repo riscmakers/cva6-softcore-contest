@@ -49,7 +49,7 @@ module riscmakers_icache
     typedef enum {
         IDLE,                       // wait for a CPU memory request
         WAIT_NON_SPECULATIVE_FLAG,  // wait for the CPU to indicate that the request is non-speculative
-        TAG_COMPARE,
+        TAG_COMPARE,                // perform a tag comparision to check for a cache hit
         WAIT_MEMORY_READ_ACK,       // wait for main memory to acknowledge read (load) request
         WAIT_MEMORY_READ_DONE,      // wait for main memory to return with read (load) data
         WAIT_KILL_REQUEST           // we got a kill request during main memory transaction: wait for memory to finish transfer before serving new requests
@@ -98,72 +98,40 @@ module riscmakers_icache
     // Instantiated modules
     // ****************************
 
+    // Xilinx Single Port Byte-Write Write First RAM
     riscmakers_cache_store #(
-        .NB_COL(ariane_pkg::ICACHE_LINE_WIDTH/8),                           // Specify number of columns (number of bytes)
-        .COL_WIDTH(8),                        // Specify column width (byte width, typically 8 or 9)
-        .RAM_DEPTH(wt_cache_pkg::ICACHE_NUM_WORDS),                     // Specify RAM depth (number of entries)
-        .RAM_PERFORMANCE("LOW_LATENCY"), // Select "HIGH_PERFORMANCE" or "LOW_LATENCY" 
-        .INIT_FILE("")                        // Specify name/location of RAM initialization file if using one (leave blank if not)
+        .NB_COL(ariane_pkg::ICACHE_LINE_WIDTH/8),   // Specify number of columns (number of bytes)
+        .COL_WIDTH(8),                              // Specify column width (byte width, typically 8 or 9)
+        .RAM_DEPTH(wt_cache_pkg::ICACHE_NUM_WORDS), // Specify RAM depth (number of entries)
+        .RAM_PERFORMANCE("LOW_LATENCY"),            // Select "HIGH_PERFORMANCE" or "LOW_LATENCY" 
+        .INIT_FILE("")                              // Specify name/location of RAM initialization file if using one (leave blank if not)
     ) i_riscmakers_icache_data_store (
-        .addra(data_store.address),     // Address bus, width determined from RAM_DEPTH
-        .dina(data_store.data_o ),       // RAM input data, width determined from NB_COL*COL_WIDTH
-        .clka(clk_i),       // Clock
-        .wea(data_store.byte_enable),         // Byte-write enable, width determined from NB_COL
-        .ena(data_store.enable),         // RAM Enable, for additional power savings, disable port when not in use
-        .rsta(rst_ni),       // Output reset (does not affect memory contents)
-        .regcea(),   // Output register enable
-        .douta(data_store.data_i)      // RAM output data, width determined from NB_COL*COL_WIDTH
+        .addra(data_store.address),                 // Address bus, width determined from RAM_DEPTH
+        .dina(data_store.data_o ),                  // RAM input data, width determined from NB_COL*COL_WIDTH
+        .clka(clk_i),                               // Clock
+        .wea(data_store.byte_enable),               // Byte-write enable, width determined from NB_COL
+        .ena(data_store.enable),                    // RAM Enable, for additional power savings, disable port when not in use
+        .rsta(rst_ni),                              // Output reset (does not affect memory contents)
+        .regcea(),                                  // Output register enable
+        .douta(data_store.data_i)                   // RAM output data, width determined from NB_COL*COL_WIDTH
     );
 
     riscmakers_cache_store #(
-        .NB_COL(riscmakers_pkg::ICACHE_TAG_STORE_DATA_WIDTH/8),                           // Specify number of columns (number of bytes)
-        .COL_WIDTH(8),                        // Specify column width (byte width, typically 8 or 9)
-        .RAM_DEPTH(wt_cache_pkg::ICACHE_NUM_WORDS),                     // Specify RAM depth (number of entries)
-        .RAM_PERFORMANCE("LOW_LATENCY"), // Select "HIGH_PERFORMANCE" or "LOW_LATENCY" 
-        .INIT_FILE("")                        // Specify name/location of RAM initialization file if using one (leave blank if not)
+        .NB_COL(riscmakers_pkg::ICACHE_TAG_STORE_DATA_WIDTH/8),
+        .COL_WIDTH(8),     
+        .RAM_DEPTH(wt_cache_pkg::ICACHE_NUM_WORDS),
+        .RAM_PERFORMANCE("LOW_LATENCY"),
+        .INIT_FILE("")
     ) i_riscmakers_icache_tag_store (
-        .addra(tag_store.address),     // Address bus, width determined from RAM_DEPTH
-        .dina(tag_store_byte_aligned.data_o),       // RAM input data, width determined from NB_COL*COL_WIDTH
-        .clka(clk_i),       // Clock
-        .wea(tag_store_byte_aligned.byte_enable),         // Byte-write enable, width determined from NB_COL
-        .ena(tag_store.enable),         // RAM Enable, for additional power savings, disable port when not in use
-        .rsta(rst_ni),       // Output reset (does not affect memory contents)
-        .regcea(),   // Output register enable
-        .douta(tag_store_byte_aligned.data_i)      // RAM output data, width determined from NB_COL*COL_WIDTH
+        .addra(tag_store.address),
+        .dina(tag_store_byte_aligned.data_o),
+        .clka(clk_i),
+        .wea(tag_store_byte_aligned.byte_enable),
+        .ena(tag_store.enable),
+        .rsta(rst_ni),
+        .regcea(),
+        .douta(tag_store_byte_aligned.data_i)
     );
-
-
-    // riscmakers_cache_store #(
-    //     .NUM_WORDS(wt_cache_pkg::ICACHE_NUM_WORDS),
-    //     .DATA_WIDTH(ariane_pkg::ICACHE_LINE_WIDTH),
-    //     .OUT_REGS(0),
-    //     .SIM_INIT(1) // zeros
-    // ) i_riscmakers_icache_data_store (
-    //     .Clk_CI    ( clk_i   ),
-    //     .Rst_RBI   ( rst_ni  ),
-    //     .CSel_SI   ( data_store.enable  ),
-    //     .WrEn_SI   ( data_store.write_enable    ),
-    //     .BEn_SI    ( data_store.byte_enable   ),
-    //     .WrData_DI ( data_store.data_o ),
-    //     .Addr_DI   ( data_store.address  ),
-    //     .RdData_DO ( data_store.data_i )
-    // );
-
-    // riscmakers_cache_store #(
-    //     .NUM_WORDS(wt_cache_pkg::ICACHE_NUM_WORDS),
-    //     .DATA_WIDTH(riscmakers_pkg::ICACHE_TAG_STORE_DATA_WIDTH),
-    //     .OUT_REGS(0),
-    //     .SIM_INIT(1) // zeros
-    // ) i_riscmakers_icache_tag_store (
-    //     .Clk_CI    ( clk_i   ),
-    //     .Rst_RBI   ( rst_ni  ),
-    //     .CSel_SI   ( tag_store.enable  ),
-    //     .WrEn_SI   ( tag_store.write_enable    ),
-    //     .BEn_SI    ( tag_store_byte_aligned.byte_enable   ),
-    //     .WrData_DI ( tag_store_byte_aligned.data_o ),
-    //     .Addr_DI   ( tag_store.address  ),
-    //     .RdData_DO ( tag_store_byte_aligned.data_i )
-    // );
 
     // *******************************
     // Byte alignment
@@ -215,12 +183,12 @@ module riscmakers_icache
         case(current_state_q)
 
             IDLE : begin
-                serve_new_request(); // working
+                serve_new_request();
             end
 
             WAIT_NON_SPECULATIVE_FLAG: begin
                 if (dreq_i.kill_s2) begin
-                    //serve_new_request(); // when this is uncommented, we are stuck at 400000 core is halted
+                     // we cannot serve a new request here. Not really sure why, but the simulation fails and the core halts without resuming
                     next_state_d = IDLE;
                 end             
                 else if (!dreq_i.spec || !addr_ni) begin
@@ -231,12 +199,10 @@ module riscmakers_icache
 
             TAG_COMPARE: begin
                 if (dreq_i.kill_s2) begin
-                    serve_new_request(); // this works, core resumes and no error
-                    //next_state_d = IDLE;
+                    serve_new_request();
                 end 
                 // (!dreq_i.spec || !addr_ni) I'm adding because its in cva6_icache.sv, not sure why we really need this
                 // I think we need to wait for the request to no longer be speculative?
-                // simulation seems to support this. Wait until the request is no longer speculative
                 else if (!dreq_i.spec || !addr_ni) begin
                     // ========================
                     // Cache hit
@@ -245,8 +211,7 @@ module riscmakers_icache
                         dreq_o.data = icache_block_to_cpu_word(data_store.data_i, req_address_q, 1'b0);
                         dreq_o.valid = 1'b1; // let the load unit know the data is available
 
-                        serve_new_request(); // working 
-                        //next_state_d = IDLE;
+                        serve_new_request();
                     end 
                     // ========================
                     // Cache miss
@@ -269,8 +234,7 @@ module riscmakers_icache
                     // if there is a kill request at the exact moment the memory transfer completes,
                     // we need to return to IDLE (or serve a new request) otherwise we will be locked in the WAIT_KILL_REQUEST state
                     if ( mem_rtrn_vld_i && (mem_rtrn_i.rtype == ICACHE_IFILL_ACK) ) begin
-                        serve_new_request(); // this works, core resumes and no error
-                        //next_state_d = IDLE;
+                        serve_new_request();
                     end 
                     // we need to go to KILL_REQUEST state, so that once the memory load finishes
                     // we don't use the output and instead we ignore it
@@ -302,8 +266,7 @@ module riscmakers_icache
                     end 
                     // we can serve a new request immediately because we won't be writing to the tag or data store if it was a non-cacheable request
                     else begin
-                        serve_new_request(); // this works, core resumes and no error
-                        //next_state_d = IDLE;
+                        serve_new_request();
                     end 
                 end 
             end 
@@ -316,8 +279,7 @@ module riscmakers_icache
             //       we stall to wait for the last requests to clear before trying more
             WAIT_KILL_REQUEST : begin
                 if (mem_rtrn_vld_i && mem_rtrn_i.rtype == ICACHE_IFILL_ACK) begin
-                    serve_new_request(); // tested, working
-                    //next_state_d = IDLE;
+                    serve_new_request();
                 end
             end 
 

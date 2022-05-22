@@ -1,7 +1,7 @@
 Copyright 1986-2020 Xilinx, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2020.1 (lin64) Build 2902540 Wed May 27 19:54:35 MDT 2020
-| Date             : Sun May 22 20:52:34 2022
+| Date             : Mon May 23 00:49:58 2022
 | Host             : riscmakers.home running 64-bit CentOS Linux release 8.5.2111
 | Command          : report_power -file work-sim/power_routed_mnist.txt -name power_1
 | Design           : cva6_zybo_z7_20
@@ -41,7 +41,7 @@ Table of Contents
 | Confidence Level         | Medium               |
 | Setting File             | ---                  |
 | Simulation Activity File | work-sim/routed.saif |
-| Design Nets Matched      | 87%   (50030/57678)  |
+| Design Nets Matched      | 87%   (50036/57684)  |
 +--------------------------+----------------------+
 * Specify Design Power Budget using, set_operating_conditions -design_power_budget <value in Watts>
 
@@ -53,15 +53,15 @@ Table of Contents
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
 | Clocks                   |     0.024 |        6 |       --- |             --- |
-| Slice Logic              |     0.012 |    50951 |       --- |             --- |
-|   LUT as Logic           |     0.012 |    22458 |     53200 |           42.21 |
+| Slice Logic              |     0.012 |    50955 |       --- |             --- |
+|   LUT as Logic           |     0.012 |    22449 |     53200 |           42.20 |
 |   Register               |    <0.001 |    20559 |    106400 |           19.32 |
 |   F7/F8 Muxes            |    <0.001 |      875 |     53200 |            1.64 |
 |   CARRY4                 |    <0.001 |     1183 |     13300 |            8.89 |
 |   LUT as Distributed RAM |    <0.001 |       52 |     17400 |            0.30 |
 |   LUT as Shift Register  |    <0.001 |      121 |     17400 |            0.70 |
 |   Others                 |     0.000 |      633 |       --- |             --- |
-| Signals                  |     0.016 |    38798 |       --- |             --- |
+| Signals                  |     0.016 |    38799 |       --- |             --- |
 | Block RAM                |     0.005 |       62 |       140 |           44.29 |
 | MMCM                     |     0.113 |        1 |         4 |           25.00 |
 | DSPs                     |    <0.001 |        4 |       220 |            1.82 |
@@ -166,15 +166,15 @@ Table of Contents
 |       i_riscmakers_icache   |     0.004 |
 |     i_frontend              |     0.009 |
 |       i_btb                 |     0.002 |
-|       i_instr_queue         |     0.003 |
+|       i_instr_queue         |     0.004 |
 |       i_instr_realign       |     0.001 |
 |     id_stage_i              |     0.002 |
 |     issue_stage_i           |     0.017 |
-|       i_issue_read_operands |     0.009 |
+|       i_issue_read_operands |     0.008 |
 |       i_scoreboard          |     0.009 |
-|   i_ariane_peripherals      |     0.003 |
+|   i_ariane_peripherals      |     0.004 |
 |     gen_uart.i_apb_uart     |     0.002 |
-|   i_axi_xbar                |     0.007 |
+|   i_axi_xbar                |     0.008 |
 |   i_xlnx_clk_gen            |     0.113 |
 |     inst                    |     0.113 |
 +-----------------------------+-----------+

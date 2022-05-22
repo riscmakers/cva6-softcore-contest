@@ -186,7 +186,7 @@ module riscmakers_icache
     // Cache finite state machine
     // *******************************
 
-    always_comb begin: dcache_fsm
+    always_comb begin: icache_fsm
         
         // ----- miscellaneous ----
         next_state_d = current_state_q; 
@@ -215,13 +215,13 @@ module riscmakers_icache
         case(current_state_q)
 
             IDLE : begin
-                serve_new_request();
+                serve_new_request(); // working
             end
 
             WAIT_NON_SPECULATIVE_FLAG: begin
                 if (dreq_i.kill_s2) begin
-                    serve_new_request();
-                    //next_state_d = IDLE;
+                    //serve_new_request(); // when this is uncommented, we are stuck at 400000 core is halted
+                    next_state_d = IDLE;
                 end             
                 else if (!dreq_i.spec || !addr_ni) begin
                     mem_data_req_o = 1'b1;
@@ -231,7 +231,7 @@ module riscmakers_icache
 
             TAG_COMPARE: begin
                 if (dreq_i.kill_s2) begin
-                    serve_new_request();
+                    serve_new_request(); // this works, core resumes and no error
                     //next_state_d = IDLE;
                 end 
                 // (!dreq_i.spec || !addr_ni) I'm adding because its in cva6_icache.sv, not sure why we really need this
@@ -245,7 +245,7 @@ module riscmakers_icache
                         dreq_o.data = icache_block_to_cpu_word(data_store.data_i, req_address_q, 1'b0);
                         dreq_o.valid = 1'b1; // let the load unit know the data is available
 
-                        serve_new_request();
+                        serve_new_request(); // working 
                         //next_state_d = IDLE;
                     end 
                     // ========================
@@ -269,7 +269,7 @@ module riscmakers_icache
                     // if there is a kill request at the exact moment the memory transfer completes,
                     // we need to return to IDLE (or serve a new request) otherwise we will be locked in the WAIT_KILL_REQUEST state
                     if ( mem_rtrn_vld_i && (mem_rtrn_i.rtype == ICACHE_IFILL_ACK) ) begin
-                        serve_new_request();
+                        serve_new_request(); // this works, core resumes and no error
                         //next_state_d = IDLE;
                     end 
                     // we need to go to KILL_REQUEST state, so that once the memory load finishes
@@ -302,7 +302,7 @@ module riscmakers_icache
                     end 
                     // we can serve a new request immediately because we won't be writing to the tag or data store if it was a non-cacheable request
                     else begin
-                        serve_new_request();
+                        serve_new_request(); // this works, core resumes and no error
                         //next_state_d = IDLE;
                     end 
                 end 
@@ -316,7 +316,7 @@ module riscmakers_icache
             //       we stall to wait for the last requests to clear before trying more
             WAIT_KILL_REQUEST : begin
                 if (mem_rtrn_vld_i && mem_rtrn_i.rtype == ICACHE_IFILL_ACK) begin
-                    serve_new_request();
+                    serve_new_request(); // tested, working
                     //next_state_d = IDLE;
                 end
             end 

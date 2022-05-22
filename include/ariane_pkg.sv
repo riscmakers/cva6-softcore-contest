@@ -429,7 +429,7 @@ package ariane_pkg;
 `else
     `ifdef RISCMAKERS_ICACHE
         // I$
-        localparam int unsigned CONFIG_L1I_SIZE    = 8*1024;
+        localparam int unsigned CONFIG_L1I_SIZE    = 4*1024;
         localparam int unsigned ICACHE_SET_ASSOC   = 4; // Not used in direct mapped cache, but need this constant for wt_cache_pkg definitions
         localparam int unsigned ICACHE_INDEX_WIDTH = $clog2(CONFIG_L1I_SIZE);  // in bit, contains also offset width
         localparam int unsigned ICACHE_TAG_WIDTH   = riscv::PLEN-ICACHE_INDEX_WIDTH;  // in bit

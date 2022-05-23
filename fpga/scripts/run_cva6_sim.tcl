@@ -115,6 +115,14 @@ if {$::env(SIM)} {
     launch_runs synth_1
     wait_on_run synth_1
     open_run synth_1
+
+    # Set specific power optimizations (Setting Power Optimization Constraints)
+    # set_power_opt
+
+    # Pre-place power optimization
+    # If preserving timing is the primary goal, the post-place power optimization step is the recommended option
+    opt_design
+    power_opt_design
     
     # set for RuntimeOptimized implementation
     set_property "steps.place_design.args.directive" "RuntimeOptimized" [get_runs impl_1]

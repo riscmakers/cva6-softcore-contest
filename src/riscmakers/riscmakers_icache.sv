@@ -324,9 +324,13 @@ module riscmakers_icache
     function void serve_new_request();
         next_state_d = IDLE; // this gets overwritten below
         dreq_o.ready = 1'b1;
+        
         if (dreq_i.req) begin
+            if (dreq_i.kill_s1) begin
+                next_state_d = IDLE;
+            end   
             // are we requesting access to I/O space or are we forcing the cache to be bypassed?
-            if (bypass_cache_d) begin
+            else if (bypass_cache_d) begin
                 // yes, so we don't need to compare tags since the cache will be bypassed
                 // is the request speculative? 
                 if (dreq_i.spec) begin
@@ -346,11 +350,6 @@ module riscmakers_icache
                 data_store.enable = 1'b1;
                 next_state_d = TAG_COMPARE;                   
             end 
-        end   
-        // I think a kill signal can be issued at the same time as the request, so this will always 
-        // be the final assignment to the next_state_d signal
-        if (dreq_i.kill_s1) begin
-            next_state_d = IDLE;
         end   
     endfunction
 

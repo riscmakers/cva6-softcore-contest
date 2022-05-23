@@ -24,7 +24,6 @@ build/
 *.out
 *.jou
 *.o
-uart
 work-ver/*
 fpga/work-fpga
 stdout/
